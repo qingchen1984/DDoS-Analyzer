@@ -1,2 +1,5 @@
 /.gradle/
-/build/
+/build/*
+*.class
+*.jar
+/src/main/resources/*
