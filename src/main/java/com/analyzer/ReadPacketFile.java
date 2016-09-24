@@ -7,17 +7,30 @@ import org.pcap4j.core.PcapHandle;
 import org.pcap4j.core.PcapHandle.TimestampPrecision;
 import org.pcap4j.core.PcapNativeException;
 import org.pcap4j.core.Pcaps;
+import org.pcap4j.packet.IpV4Packet;
+import org.pcap4j.packet.IpV4Packet.IpV4Header;
 import org.pcap4j.packet.Packet;
+import org.pcap4j.packet.Packet.Builder;
+import org.pcap4j.packet.Packet.Header;
+import org.pcap4j.packet.TcpPacket;
+import org.pcap4j.packet.TcpPacket.TcpHeader;
+import org.pcap4j.packet.UdpPacket;
+import org.pcap4j.packet.UdpPacket.UdpHeader;
+import org.pcap4j.packet.namednumber.IpNumber;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.database.DbStore;
 
 @SuppressWarnings("javadoc")
 public class ReadPacketFile {
 
-  private static final int COUNT = 5;
+  private static final int COUNT = 100000;
 
   private static final String PCAP_FILE_KEY
     = ReadPacketFile.class.getName() + ".pcapFile";
   private static final String PCAP_FILE
-    = System.getProperty(PCAP_FILE_KEY, "src/main/resources/test2.pcap");
+    = System.getProperty(PCAP_FILE_KEY, "src/main/resources/synack.pcap");
 
   private ReadPacketFile() {}
 
@@ -28,14 +41,35 @@ public class ReadPacketFile {
     } catch (PcapNativeException e) {
       handle = Pcaps.openOffline(PCAP_FILE);
     }
-
-    for (int i = 0; i < COUNT; i++) {
+    Logger logger = LoggerFactory.getLogger(ReadPacketFile.class);
+    DbStore dbStrore = new DbStore();
+    for (int i = 1; i <= COUNT; i++) {
       try {
         Packet packet = handle.getNextPacketEx();
-        System.out.println(handle.getTimestamp());
-        System.out.println(packet.getBuilder().getPayloadBuilder().build());
-      } catch (TimeoutException e) {
-      } catch (EOFException e) {
+        IpV4Packet ipV4Packet = packet.get(IpV4Packet.class);
+        if (ipV4Packet == null) { 
+        	continue; 
+        }
+        
+        IpV4Header header = ipV4Packet.getHeader();
+        if (header.getProtocol().equals(IpNumber.TCP)) {
+	        TcpPacket tcpPacket = ipV4Packet.get(TcpPacket.class);
+	        //System.out.println("Identification: " + header.getIdentification());
+	        TcpHeader tcpHeader = tcpPacket.getHeader();
+	        dbStrore.insertToDB(i, handle.getTimestamp(), 
+	        		header.getSrcAddr().getHostAddress(), tcpHeader.getSrcPort().value(),
+	        		header.getDstAddr().getHostAddress(), tcpHeader.getDstPort().value(), 
+	        		header.getProtocol().name(), tcpHeader.getAck(), tcpHeader.getSyn());
+        } else if (header.getProtocol().equals(IpNumber.UDP)) {
+        	UdpPacket udpPacket = ipV4Packet.get(UdpPacket.class);
+        	UdpHeader udpHeader = udpPacket.getHeader();
+	        dbStrore.insertToDB(i, handle.getTimestamp(), 
+	        		header.getSrcAddr().getHostAddress(), udpHeader.getSrcPort().value(),
+	        		header.getDstAddr().getHostAddress(), udpHeader.getDstPort().value(), 
+	        		header.getProtocol().name(), false, false);
+        }
+        
+      } catch (TimeoutException | EOFException e) {
         System.out.println("EOF");
         break;
       }
