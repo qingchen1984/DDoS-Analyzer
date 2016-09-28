@@ -1,6 +1,7 @@
 package com.analyzer;
 
 import java.io.EOFException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeoutException;
 import org.pcap4j.core.NotOpenException;
 import org.pcap4j.core.PcapHandle;
@@ -43,6 +44,7 @@ public class ReadPacketFile {
     }
     Logger logger = LoggerFactory.getLogger(ReadPacketFile.class);
     DbStore dbStrore = new DbStore();
+    long startTime = System.currentTimeMillis();
     for (int i = 1; i <= COUNT; i++) {
       try {
         Packet packet = handle.getNextPacketEx();
@@ -57,16 +59,20 @@ public class ReadPacketFile {
 	        //System.out.println("Identification: " + header.getIdentification());
 	        TcpHeader tcpHeader = tcpPacket.getHeader();
 	        dbStrore.insertToDB(i, handle.getTimestamp(), 
-	        		header.getSrcAddr().getHostAddress(), tcpHeader.getSrcPort().value(),
-	        		header.getDstAddr().getHostAddress(), tcpHeader.getDstPort().value(), 
-	        		header.getProtocol().name(), tcpHeader.getAck(), tcpHeader.getSyn());
+	        		ByteBuffer.wrap(header.getSrcAddr().getAddress()).getLong(), 
+	        		tcpHeader.getSrcPort().value(),
+	        		ByteBuffer.wrap(header.getDstAddr().getAddress()).getLong(), 
+	        		tcpHeader.getDstPort().value(), 
+	        		header.getProtocol().hashCode(), tcpHeader.getAck(), tcpHeader.getSyn());
         } else if (header.getProtocol().equals(IpNumber.UDP)) {
         	UdpPacket udpPacket = ipV4Packet.get(UdpPacket.class);
         	UdpHeader udpHeader = udpPacket.getHeader();
 	        dbStrore.insertToDB(i, handle.getTimestamp(), 
-	        		header.getSrcAddr().getHostAddress(), udpHeader.getSrcPort().value(),
-	        		header.getDstAddr().getHostAddress(), udpHeader.getDstPort().value(), 
-	        		header.getProtocol().name(), false, false);
+	        		ByteBuffer.wrap(header.getSrcAddr().getAddress()).getLong(), 
+	        		udpHeader.getSrcPort().value(),
+	        		ByteBuffer.wrap(header.getDstAddr().getAddress()).getLong(), 
+	        		udpHeader.getDstPort().value(), 
+	        		header.getProtocol().hashCode(), false, false);
         }
         
       } catch (TimeoutException | EOFException e) {
@@ -74,7 +80,8 @@ public class ReadPacketFile {
         break;
       }
     }
-
+    long endTime = System.currentTimeMillis();
+    logger.info("Total load time: " + (endTime - startTime)/1000 + " seconds");
     handle.close();
   }
 
