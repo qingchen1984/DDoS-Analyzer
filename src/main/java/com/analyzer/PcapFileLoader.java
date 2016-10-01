@@ -25,43 +25,41 @@ public class PcapFileLoader {
 	private static final String PCAP_FILE_KEY = 
 			PcapFileLoader.class.getName() + ".pcapFile";
 	private static final String PCAP_FILE = 
-			System.getProperty(PCAP_FILE_KEY, "src/main/resources/synack.pcap");
+			System.getProperty(PCAP_FILE_KEY, "src/main/resources/test500.pcap");
 
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		
+		Logger logger = LoggerFactory.getLogger(PcapFileLoader.class);
 		final StringBuilder errbuf = new StringBuilder(); // For any error msgs  
-        final String file = "synack.pcap";  
-        File filePcap = new File(PCAP_FILE);
-        System.out.println("Does file exist? : " + filePcap.exists());  
   
         System.out.printf("Opening file for reading: %s%n", PCAP_FILE);  
   
-        final Pcap pcap = Pcap.openOffline(filePcap.getAbsolutePath(), errbuf);  
+        final Pcap pcap = Pcap.openOffline(PCAP_FILE, errbuf);  
         if (pcap == null) {  
-            System.err.println(errbuf); // Error is stored in errbuf if any  
+        	logger.info(errbuf.toString()); // Error is stored in errbuf if any  
             return;  
         } 
+        
         /*************************************************************************** 
          * Third we create a packet handler which will receive packets from the 
          * libpcap loop. 
          **************************************************************************/  
+        
         PcapPacketHandler<DbStore> jpacketHandler = new PcapPacketHandler<DbStore>() {
             public void nextPacket(PcapPacket packet, DbStore dbStrore) {  
             	Ip4 ip = new Ip4();
             	Tcp tcp = new Tcp();
             	Udp udp = new Udp();
-            	
-            	
+            	byte[] srcIp;
+    			byte[] destIp;
+    			Timestamp stamp = new Timestamp(packet.getCaptureHeader().timestampInMillis());
+    			long packetNumber = packet.getFrameNumber();
+    			
             	if(packet.hasHeader(ip)) {
-            		//System.out.println("Does file exist? : " + filePcap.exists()); 
-            		long srcIp = 0;
-        			long destIp = 0;
-        			Timestamp stamp = new Timestamp(packet.getCaptureHeader().timestampInMillis());
-        			int packetNumber = (int)packet.getFrameNumber();
-    				srcIp = (long)ip.sourceToInt();
-    				destIp = (long)ip.destinationToInt();
+            		
+    				srcIp = ip.source();
+    				destIp = ip.destination();
 					
             		if (packet.hasHeader(tcp)) {
             			dbStrore.insertToDB(packetNumber, stamp, 
@@ -74,7 +72,7 @@ public class PcapFileLoader {
             					destIp, udp.destination(), 
             	        		2, false, false);
             		} else {
-            			System.out.println("IP Header not parsed");
+            			logger.info("IP Header not parsed. Packet #" + packetNumber );
             		}
             		
             	}
@@ -90,18 +88,19 @@ public class PcapFileLoader {
          * the loop method exists that allows the programmer to sepecify exactly 
          * which protocol ID to use as the data link type for this pcap interface. 
          **************************************************************************/  
-        DbStore dbStrore = new DbStore();
-        Logger logger = LoggerFactory.getLogger(PcapFileLoader.class);
+        DbStore dbStrore = new DbStore(false, 0);
+        dbStrore.clearDbTable();
         long startTime = System.currentTimeMillis();
         try {  
-            pcap.loop(100000, jpacketHandler, dbStrore);  
+            pcap.loop(Pcap.LOOP_INFINITE, jpacketHandler, dbStrore);  
+            
         } finally {  
-        	dbStrore.commitRemainder();
+        	dbStrore.commitBatch();
         /*************************************************************************** 
          * Last thing to do is close the pcap handle 
          **************************************************************************/  
         	long endTime = System.currentTimeMillis();
-            logger.info("Total load time: " + (endTime - startTime) + " miliseconds");
+            logger.info("Total load time: " + (endTime - startTime)/1000 + " seconds");
         	pcap.close();  
         }
         

@@ -3,3 +3,4 @@
 *.class
 *.jar
 /src/main/resources/*
+/build/
