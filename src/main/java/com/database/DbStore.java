@@ -3,12 +3,13 @@ package com.database;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 public class DbStore {
 	private String url;
@@ -19,11 +20,11 @@ public class DbStore {
 	private int stackIndex;
 	private int STACK_CAP = 250000; //default value
 	private boolean autoCommit = false;
-	private Logger lgr;
-	
-	
+	private Connection con;
+	private Logger logger;
+
 	public DbStore(boolean autoCommit, int cap){
-		lgr = Logger.getLogger(DbStore.class.getName());
+		logger = LogManager.getLogger(DbStore.class);
         pst = null;
         stackIndex = 0;
         url = "jdbc:mysql://localhost:3306/dataanalyzer?autoReconnect=true&useSSL=false";
@@ -62,7 +63,7 @@ public class DbStore {
             	commitBatch();
             }
         } catch (SQLException ex) {
-            lgr.log(Level.SEVERE, ex.getMessage(), ex);
+            logger.error(ex.getMessage());
             result = false;
         }
         return result;
@@ -72,13 +73,16 @@ public class DbStore {
 		boolean result = false;
 		if (stackIndex <= 0) return result;
 		try {
-			pst.executeLargeBatch();
-			pst.getConnection().commit();
-        	lgr.log(Level.INFO, "commitBatch commited " + stackIndex + " entries.");
+			logger.info("commitBatch - Attempting to commit " + stackIndex + " entries.");
+			long startTime = System.currentTimeMillis();
+			long[] rs = pst.executeLargeBatch();
+			con.commit();
+			long endTime = System.currentTimeMillis();
+			logger.info("commitBatch - commited " + rs.length + " entries in " + (endTime - startTime)/1000 + " seconds.");
         	stackIndex = 0;
         	result = true;
 		} catch (SQLException e) {
-            lgr.log(Level.SEVERE, e.getMessage(), e);
+			logger.error(e.getMessage(), e);
 		} finally {
 			closeConnection();
 		}
@@ -86,26 +90,26 @@ public class DbStore {
 	}
 	
 	private void closeConnection() {
-		Connection con = null;
 		 try {
              if (pst != null) {
-            	 con = pst.getConnection();
                  pst.close();
              }
              if (con != null) {
                  con.close();
              }
          } catch (SQLException ex) {
-             lgr.log(Level.SEVERE, ex.getMessage(), ex);
+        	 logger.error(ex.getMessage(), ex);
          }
 	}
 	
 	private void openConnection() {
 		try {
 			if (pst == null || pst.isClosed()) {
-				Connection connection = DriverManager.getConnection(url, user, password);
-				connection.setAutoCommit(false);
-				pst = connection.prepareStatement(insertQuery);
+				if (con == null || con.isClosed()) {
+					con = DriverManager.getConnection(url, user, password);
+					con.setAutoCommit(false);
+				}
+				pst = con.prepareStatement(insertQuery);
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -120,14 +124,13 @@ public class DbStore {
 			st = connection.createStatement();
 			st.executeUpdate("TRUNCATE packetinfo");
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 		} finally {
 			try {
 				if (st != null) st.close();
 				if (connection != null) connection.close();
 			} catch (SQLException e) {
-				e.printStackTrace();
+				logger.error(e.getMessage(), e);
 			}
 		}
 		
