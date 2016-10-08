@@ -1,47 +1,57 @@
 package com.analyzer;
 
 import java.io.EOFException;
-import java.nio.ByteBuffer;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
-import org.jnetpcap.util.PcapPacketSupport;
+import org.apache.logging.log4j.Logger;
 import org.pcap4j.core.NotOpenException;
 import org.pcap4j.core.PcapHandle;
 import org.pcap4j.core.PcapHandle.TimestampPrecision;
 import org.pcap4j.core.PcapNativeException;
 import org.pcap4j.core.Pcaps;
-import org.pcap4j.packet.IcmpV4CommonPacket;
-import org.pcap4j.packet.IcmpV4CommonPacket.IcmpV4CommonHeader;
+import org.pcap4j.packet.FragmentedPacket;
 import org.pcap4j.packet.IpV4Packet;
 import org.pcap4j.packet.IpV4Packet.IpV4Header;
-import org.pcap4j.packet.Packet;
-import org.pcap4j.packet.Packet.Builder;
-import org.pcap4j.packet.Packet.Header;
 import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.packet.TcpPacket.TcpHeader;
 import org.pcap4j.packet.UdpPacket;
 import org.pcap4j.packet.UdpPacket.UdpHeader;
 import org.pcap4j.packet.namednumber.IpNumber;
+import org.pcap4j.util.IpV4Helper;
 
 import com.database.DbStore;
 
 @SuppressWarnings("javadoc")
-public class PcapReader implements Runnable{
+public class PcapReader implements Runnable {
 	private static Logger logger;
-	
 
 	private final static int TCP = IpNumber.TCP.hashCode();
 	private final static int ICMPV4 = IpNumber.ICMPV4.hashCode();
 	private final static int UDP = IpNumber.UDP.hashCode();
-	
+	private int packetIndex;
+	private int packetProcessed;
+
 	private String pcapFile;
 
 	PcapReader(String pcapFileLocation) {
 		logger = LogManager.getLogger(PcapReader.class);
 		pcapFile = pcapFileLocation;
+		packetIndex = 0;
+		packetProcessed = 0;
+	}
+	
+	public int getPacketsRead() {
+		return packetIndex;
+	}
+	
+	public int getPacketsProcessed() {
+		return packetProcessed;
 	}
 
 	@Override
@@ -55,16 +65,13 @@ public class PcapReader implements Runnable{
 			try {
 				handle = Pcaps.openOffline(pcapFile);
 			} catch (PcapNativeException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				logger.error(e1.getLocalizedMessage());
 			}
 		}
 		
 		dbStrore = new DbStore(false, 0);
-		//dbStrore.clearDbTable();
 
-		int packetProcessed = 0;
-		int packetIndex = 0;
+		Map<Short, List<IpV4Packet>> ipV4Fragments = new HashMap<Short, List<IpV4Packet>>();
 
 		long startTime = System.currentTimeMillis();
 		for (;;) {
@@ -98,48 +105,61 @@ public class PcapReader implements Runnable{
 						srcPort = udpHeader.getSrcPort().valueAsInt();
 						destPort = udpHeader.getDstPort().valueAsInt();
 					} else {// likely a fragment
-
-						if (protocol == IpNumber.ICMPV4.hashCode()) {
-							logger.info("ICMPV4 packet found with no UDP header. Packet: " + packetIndex);
-						}
-						if (ipV4Packet.getHeader().getMoreFragmentFlag()) {
-							logger.info("Fragmented packet " + packetIndex);
+						short id = header.getIdentification();
+						FragmentedPacket fragmentedPacket = ipV4Packet.get(FragmentedPacket.class);
+						if (fragmentedPacket != null) {
+							if (ipV4Fragments.containsKey(id)) {// add fragment to list
+								ipV4Fragments.get(id).add(ipV4Packet);
+							} else {// start a new fragmented list
+								List<IpV4Packet> list = new ArrayList<IpV4Packet>();
+								list.add(ipV4Packet.get(IpV4Packet.class));
+								ipV4Fragments.put(id, list);
+							}
+							if (!header.getMoreFragmentFlag()) {
+								IpV4Packet ipDefragPack = IpV4Helper.defragment(ipV4Fragments.get(id));
+								UdpPacket udpDefragPacket = ipDefragPack.get(UdpPacket.class);
+								if (udpDefragPacket != null) {
+									UdpHeader udpHeader = udpDefragPacket.getHeader();
+									srcPort = udpHeader.getSrcPort().valueAsInt();
+									destPort = udpHeader.getDstPort().valueAsInt();
+									ipV4Fragments.remove(id);
+								} else {
+									logger.warn("Could not defragment UDP packet " + packetIndex);
+								}
+							}
 						} else {
-							logger.info("Packet not fragmented but does not have UDP class " + packetIndex);
+							logger.warn("Packet not fragmented but does not have UDP class " + packetIndex);
 						}
+
 					}
 				} else {
-					logger.info( "IP Protocol not recognized: " + header.getProtocol().toString() + " #" + packetIndex);
+					logger.warn("IP Protocol not recognized: " + header.getProtocol().toString() + " #" + packetIndex);
 				}
 
 				// add row to DB batch
 				packetProcessed++;
-				
-				dbStrore.insertToDB(packetProcessed, tstmp, srcAddress, srcPort, destAddress, destPort, protocol, ack,
+
+				dbStrore.addToBatch(packetProcessed, tstmp, srcAddress, srcPort, destAddress, destPort, protocol, ack,
 						syn);
-				
+
 				if (packetProcessed % 100000 == 0) {
 					dbStrore.commitBatch();
 				}
 
-			} catch (TimeoutException | EOFException e) {
+			} catch (EOFException e) {
 				logger.info("EOF");
 				break;
-			} catch (PcapNativeException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (NotOpenException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (PcapNativeException | NotOpenException | TimeoutException e) {
+				logger.error(e.getLocalizedMessage());
 			}
 		} // end of for loop
 
 		// inserts any remainder rows in batch to the DB
 		dbStrore.commitBatch();
 		long endTime = System.currentTimeMillis();
-		logger.info("Total load time: " + (endTime - startTime) / 1000 + " seconds");
-		logger.info("Packets read: " + packetIndex);
-		logger.info("Packets proccessed: " + packetProcessed);
+		logger.debug("Total load time: " + (endTime - startTime) / 1000 + " seconds");
+		logger.debug("Packets read: " + packetIndex);
+		logger.debug("Packets proccessed: " + packetProcessed);
 		handle.close();
 	}
 

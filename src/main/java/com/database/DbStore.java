@@ -11,6 +11,12 @@ import java.sql.Timestamp;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 
+/**
+ * Manages all functions related to the database.
+ * 
+ * @author aavalos
+ *
+ */
 public class DbStore {
 	private String url;
 	private String user;
@@ -22,7 +28,13 @@ public class DbStore {
 	private boolean autoCommit = false;
 	private Connection con;
 	private Logger logger;
-
+	
+	/**
+	 * Constructor
+	 * 
+	 * @param autoCommit true to enable the cap parameter.
+	 * @param cap number of times insertToDB gets called before committing to database automatically. Enabled by autoCommit 
+	 */
 	public DbStore(boolean autoCommit, int cap){
 		logger = LogManager.getLogger(DbStore.class);
         pst = null;
@@ -39,7 +51,21 @@ public class DbStore {
         this.autoCommit = autoCommit;
 	}
 	
-	public boolean insertToDB(long packetNumber, Timestamp timestamp, 
+	/**
+	 * Adds parameters to a batch to be later inserted to the DB.
+	 * 
+	 * @param packetNumber
+	 * @param timestamp
+	 * @param srcAddress
+	 * @param srcPort
+	 * @param destAddress
+	 * @param destPort
+	 * @param protocol
+	 * @param ack
+	 * @param syn
+	 * @return
+	 */
+	public boolean addToBatch(long packetNumber, Timestamp timestamp, 
 			byte[] srcAddress, int srcPort, byte[] destAddress, int destPort, 
 			int protocol, boolean ack, boolean syn){
 		boolean result = true;
@@ -73,14 +99,17 @@ public class DbStore {
 		boolean result = false;
 		if (stackIndex <= 0) return result;
 		try {
-			logger.info("commitBatch - Attempting to commit " + stackIndex + " entries.");
 			long startTime = System.currentTimeMillis();
 			long[] rs = pst.executeLargeBatch();
 			con.commit();
 			long endTime = System.currentTimeMillis();
-			logger.info("commitBatch - commited " + rs.length + " entries in " + (endTime - startTime)/1000 + " seconds.");
-        	stackIndex = 0;
-        	result = true;
+			logger.debug("commitBatch - commited " + rs.length + " entries in " + (endTime - startTime)/1000 + " seconds.");
+        	if (stackIndex != rs.length) {
+				logger.error("commitBatch - expected entries " + stackIndex + " commited entries " + rs.length);
+			} else {
+				result = true;
+			}
+			stackIndex = 0;
 		} catch (SQLException e) {
 			logger.error(e.getMessage(), e);
 		} finally {
@@ -97,8 +126,8 @@ public class DbStore {
              if (con != null) {
                  con.close();
              }
-         } catch (SQLException ex) {
-        	 logger.error(ex.getMessage(), ex);
+         } catch (SQLException e) {
+        	 logger.error(e.getMessage(), e);
          }
 	}
 	
@@ -112,7 +141,7 @@ public class DbStore {
 				pst = con.prepareStatement(insertQuery);
 			}
 		} catch (SQLException e) {
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 		}
 	}
 	

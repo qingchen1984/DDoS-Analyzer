@@ -2,8 +2,9 @@ package com.analyzer;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map.Entry;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +24,6 @@ public class PcapAnalyzer {
 		//Clears DB from any previous results
 		DbStore dbStrore = new DbStore(false, 0);
 		dbStrore.clearDbTable();
-		
 		//Split pcap file
 		PcapManager pm = new PcapManager();
 		pm.pcapSplitter(srcPcapFile, dirName, packetSize);
@@ -32,34 +32,47 @@ public class PcapAnalyzer {
 		File f = new File(dirName);
 		File[] files = f.listFiles();
 		
-		//Parse each file
-		ArrayList<Thread> threadArr = new ArrayList<Thread>();
+		//Parse each file in separate threads
+		HashMap<Thread, PcapReader> threadArr = new HashMap<Thread, PcapReader>();
 		for(File file: files){
-			System.out.println(file.getName());
-			Thread th = new Thread(new PcapReader(file.getAbsolutePath()));
+			logger.info("File name: " + file.getName());
+			PcapReader pr = new PcapReader(file.getAbsolutePath());
+			Thread th = new Thread(pr);
 			th.setName(file.getName());
 			th.start();
-			threadArr.add(th);
-		}
-		Iterator<Thread> iterator = threadArr.iterator();
-		try {
-			while (iterator.hasNext()) {
-				iterator.next().join();
-			}
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			threadArr.put(th,  pr);
 		}
 		
+		// Wait until every thread finishes
+		Iterator<Entry<Thread, PcapReader>> iterator = threadArr.entrySet().iterator();
+		try {
+			while (iterator.hasNext()) {
+				iterator.next().getKey().join();
+			}
+		} catch (InterruptedException e) {
+			logger.error(e.getMessage());
+		}
 		long endTime = System.currentTimeMillis();
-		System.out.println("All threads completed in: " + (endTime - startTime)/1000 + " seconds");
-        
+		
+		// Get statistics
+		long packetsProcessed = 0;
+		long packetsRead = 0;
+		iterator = threadArr.entrySet().iterator();
+		while (iterator.hasNext()) {
+			PcapReader pr = iterator.next().getValue();
+			packetsProcessed = packetsProcessed + pr.getPacketsProcessed();
+			packetsRead = packetsRead + pr.getPacketsRead();
+		}
+		
+		logger.info("All threads completed in: " + (endTime - startTime)/1000 + " seconds");
+		logger.info("Packets read: " + packetsRead);
+		logger.info("Packets Processed: " + packetsProcessed);
+		
 		// Delete tmp directory
 		try {
 			FileUtils.deleteDirectory(new File(dirName));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error(e.getMessage());
 		}
 	}
 }

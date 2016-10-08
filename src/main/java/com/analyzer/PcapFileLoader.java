@@ -62,12 +62,12 @@ public class PcapFileLoader {
     				destIp = ip.destination();
 					
             		if (packet.hasHeader(tcp)) {
-            			dbStrore.insertToDB(packetNumber, stamp, 
+            			dbStrore.addToBatch(packetNumber, stamp, 
             					srcIp, tcp.source(),
             					destIp, tcp.destination(), 
             	        		1, tcp.flags_ACK(), tcp.flags_SYN());
             		} else if (packet.hasHeader(udp)) {
-            			dbStrore.insertToDB(packetNumber, stamp, 
+            			dbStrore.addToBatch(packetNumber, stamp, 
             					srcIp, udp.source(),
             					destIp, udp.destination(), 
             	        		2, false, false);

@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /**
  * Class that holds function to manage a Pcap file.
  * 
@@ -11,6 +14,7 @@ import java.io.InputStream;
  *
  */
 public class PcapManager {
+	private static Logger logger;
 	
 	/**
 	 * Splits pcap file into fixed-sized packets.
@@ -23,6 +27,7 @@ public class PcapManager {
 	 * @throws InterruptedException
 	 */
 	public int pcapSplitter(String srcFile, String outputDir, int numOfPackets ) {
+		logger = LogManager.getLogger();
 		int result = -1; //failure by default
 		String[] cmd = { 
 				"lib/SplitCap_2-1/SplitCap.exe", 
@@ -31,7 +36,7 @@ public class PcapManager {
 				"-s", "packets", String.valueOf(numOfPackets) };
 		
 		//Create temporary directory
-		System.out.println("Creating directory under: " + outputDir);
+		logger.info("Creating directory under: " + outputDir);
 		File f = new File(outputDir);
 		if (!f.exists()) {
 			f.mkdirs();
