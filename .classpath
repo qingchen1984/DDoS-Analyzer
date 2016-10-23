@@ -28,7 +28,7 @@
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.buildship.core.gradleclasspathcontainer">
 		<attributes>
-			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="DDoS-Analyzer/lib/SplitCap_2-1"/>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="DDoS-Analyzer/lib/jnetpcapNative"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="output" path="bin"/>

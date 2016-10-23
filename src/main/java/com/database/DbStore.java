@@ -18,37 +18,32 @@ import org.apache.logging.log4j.LogManager;
  *
  */
 public class DbStore {
+	public static final String TCP_FLOODING_TABLE_NAME = "tcpFlood";
+	public static final String UDP_FLOODING_TABLE_NAME = "udpFlood";
+	public static final String ICMP_FLOODING_TABLE_NAME = "icmpFlood";
 	private String url;
+	private String urlNoDb;
 	private String user;
 	private String password;
-	private PreparedStatement pst;
-	private String insertQuery;
-	private int stackIndex;
-	private int STACK_CAP = 250000; //default value
-	private boolean autoCommit = false;
+	private PreparedStatement pstTcp;
+	private PreparedStatement pstUdp;
+	private PreparedStatement pstIcmp;
 	private Connection con;
 	private Logger logger;
 	
 	/**
 	 * Constructor
 	 * 
-	 * @param autoCommit true to enable the cap parameter.
-	 * @param cap number of times insertToDB gets called before committing to database automatically. Enabled by autoCommit 
+	 * @param dbName Database name to be used.
+	 * @param createDB Flag determining if database should be created.
 	 */
-	public DbStore(boolean autoCommit, int cap){
+	public DbStore(String dbName, boolean createDB){
 		logger = LogManager.getLogger(DbStore.class);
-        pst = null;
-        stackIndex = 0;
-        url = "jdbc:mysql://localhost:3306/dataanalyzer?autoReconnect=true&useSSL=false";
+        url = "jdbc:mysql://localhost:3306/" + dbName + "?autoReconnect=true&useSSL=false";
+        urlNoDb = "jdbc:mysql://localhost:3306/?autoReconnect=true&useSSL=false";
         user = "root";
         password = "password";
-        insertQuery = "INSERT INTO packetinfo(PacketNumber,"
-        					+ "Timestamp,SrcAddress,SrcPort,"
-			        		+ "DestAddress,DestPort,"
-			        		+ "Protocol,Ack,Syn) "
-		        		+ "VALUES(?,?,?,?,?,?,?,?,?)";
-        STACK_CAP = cap;
-        this.autoCommit = autoCommit;
+        if (createDB) setupDB(dbName);
 	}
 	
 	/**
@@ -65,63 +60,101 @@ public class DbStore {
 	 * @param syn
 	 * @return
 	 */
-	public boolean addToBatch(long packetNumber, Timestamp timestamp, 
-			byte[] srcAddress, int srcPort, byte[] destAddress, int destPort, 
-			int protocol, boolean ack, boolean syn){
+	public boolean addToBatch(String tableName, Timestamp timestamp, byte[] srcAddress){
 		boolean result = true;
         try {
         	openConnection();
-            
-            pst.setLong(1, packetNumber);
-            pst.setTimestamp(2, timestamp);
-            pst.setBytes(3, srcAddress);
-            pst.setInt(4, srcPort);
-            pst.setBytes(5, destAddress);
-            pst.setInt(6, destPort);
-            pst.setInt(7, protocol);
-            pst.setBoolean(8, ack);
-            pst.setBoolean(9, syn);
+            PreparedStatement pst = getPreparedStatement(tableName);
+            if ( pst == null) { 
+    			logger.error("addToBatch:: PreparedStatement found null for table name: " + tableName);
+    			return false;
+    		}
+            pst.setTimestamp(1, timestamp);
+            pst.setBytes(2, srcAddress);
             
             pst.addBatch();
-            stackIndex++;
             
-            if (autoCommit && stackIndex == STACK_CAP) {
-            	commitBatch();
-            }
         } catch (SQLException ex) {
             logger.error(ex.getMessage());
             result = false;
         }
         return result;
     }
+
+	/**
+	 * Gets the appropriate PreparedStatement according to the provided table name.
+	 * 
+	 * @param tableName Table name options from the class static variables.
+	 * @return PreparedStatement corresponding to the provided table name.
+	 */
+	private PreparedStatement getPreparedStatement(String tableName) {
+		PreparedStatement pst = null;
+		switch(tableName) {
+			case TCP_FLOODING_TABLE_NAME:
+				pst = pstTcp;
+				break;
+			case UDP_FLOODING_TABLE_NAME:
+				pst = pstUdp;
+				break;
+			case ICMP_FLOODING_TABLE_NAME:
+				pst = pstIcmp;
+				break;
+			default:
+				logger.error("Unrecognized table name: " + tableName);
+		}
+		return pst;
+	}
 	
-	public boolean commitBatch() {
+	/**
+	 * Commits batch for the table name provided.
+	 * 
+	 * @param tableName Table name options from the class static variables.
+	 * @return true if the entire batch committed successfully, false otherwise.
+	 */
+	public boolean commitBatch(String tableName) {
+		
 		boolean result = false;
-		if (stackIndex <= 0) return result;
+		//if (stackIndex <= 0) return result;
+		PreparedStatement pst = getPreparedStatement(tableName);
+		if ( pst == null) { 
+			logger.error("commitBatch:: PreparedStatement found null for table name: " + tableName);
+			return result;
+		}
 		try {
 			long startTime = System.currentTimeMillis();
 			long[] rs = pst.executeLargeBatch();
 			con.commit();
 			long endTime = System.currentTimeMillis();
 			logger.debug("commitBatch - commited " + rs.length + " entries in " + (endTime - startTime)/1000 + " seconds.");
-        	if (stackIndex != rs.length) {
-				logger.error("commitBatch - expected entries " + stackIndex + " commited entries " + rs.length);
-			} else {
-				result = true;
-			}
-			stackIndex = 0;
+        	result = true;
 		} catch (SQLException e) {
 			logger.error(e.getMessage(), e);
 		} finally {
-			closeConnection();
+			closePstConnection(pst);
 		}
 		return result;
 	}
 	
-	private void closeConnection() {
+	private void closePstConnection(PreparedStatement pst) {
+		try {
+			if (pst != null) {
+				pst.close();
+			}
+		} catch (SQLException e) {
+				logger.error(e.getMessage(), e);
+			}
+	}
+	
+	public void closeAllConnections() {
 		 try {
-             if (pst != null) {
-                 pst.close();
+             if (pstTcp != null) {
+            	 pstTcp.close();
+             }
+             if (pstUdp != null) {
+            	 pstUdp.close();
+             }
+             if (pstIcmp != null) {
+            	 pstIcmp.close();
              }
              if (con != null) {
                  con.close();
@@ -133,12 +166,18 @@ public class DbStore {
 	
 	private void openConnection() {
 		try {
-			if (pst == null || pst.isClosed()) {
-				if (con == null || con.isClosed()) {
+			if (con == null || con.isClosed()) {
 					con = DriverManager.getConnection(url, user, password);
 					con.setAutoCommit(false);
-				}
-				pst = con.prepareStatement(insertQuery);
+			}
+			if (pstTcp == null || pstTcp.isClosed()) {
+				pstTcp = con.prepareStatement(getInsertQueryForTable(TCP_FLOODING_TABLE_NAME));
+			}
+			if (pstUdp == null || pstUdp.isClosed()) {
+				pstUdp = con.prepareStatement(getInsertQueryForTable(UDP_FLOODING_TABLE_NAME));
+			}
+			if (pstIcmp == null || pstIcmp.isClosed()) {
+				pstIcmp = con.prepareStatement(getInsertQueryForTable(ICMP_FLOODING_TABLE_NAME));
 			}
 		} catch (SQLException e) {
 			logger.error(e.getMessage(), e);
@@ -151,7 +190,9 @@ public class DbStore {
 		try {
 			connection = DriverManager.getConnection(url, user, password);
 			st = connection.createStatement();
-			st.executeUpdate("TRUNCATE packetinfo");
+			st.executeUpdate("TRUNCATE " + TCP_FLOODING_TABLE_NAME);
+			st.executeUpdate("TRUNCATE " + UDP_FLOODING_TABLE_NAME);
+			st.executeUpdate("TRUNCATE " + ICMP_FLOODING_TABLE_NAME);
 		} catch (SQLException e) {
 			logger.error(e.getMessage(), e);
 		} finally {
@@ -163,5 +204,59 @@ public class DbStore {
 			}
 		}
 		
+	}
+	
+	/**
+	 * Sets up database using the given name
+	 * 
+	 * @param dbName Name for database
+	 */
+	private void setupDB(String dbName) {
+		Connection connection = null;
+		try {
+			// Create DB
+			connection = DriverManager.getConnection(urlNoDb, user, password);
+		    Statement  statement = connection.createStatement();
+		    statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbName);
+		    // Create tables
+		    createTable(TCP_FLOODING_TABLE_NAME, dbName, connection);
+		    createTable(UDP_FLOODING_TABLE_NAME, dbName, connection);
+		    createTable(ICMP_FLOODING_TABLE_NAME, dbName, connection);
+		}
+		catch (SQLException e) {
+			logger.error("Database creation failed", e);
+		    e.printStackTrace();
+		} 
+	}
+	
+	/**
+	 * Create a table using the given name and connection. 
+	 * 
+	 * @param tableName Name for table
+	 * @param dbName DB name where to create the tables.
+	 * @param connection Connection to be used
+	 * @throws SQLException
+	 */
+	private void createTable(String tableName, String dbName, Connection connection) throws SQLException {
+	    String sqlCreate = "CREATE TABLE IF NOT EXISTS " + dbName + "." + tableName
+	            + "  (Id BIGINT(20) NOT NULL AUTO_INCREMENT,"
+	            + "   Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+	            + "   SrcAddress VARBINARY(16),"
+	            + "   PRIMARY KEY (`Id`))";
+
+	    Statement stmt = connection.createStatement();
+	    stmt.execute(sqlCreate);
+	}
+	
+	/**
+	 * Gets the insert query for the given table name.
+	 * 
+	 * @param tableName Table name for the insert query.
+	 * @return Insert string.
+	 */
+	private String getInsertQueryForTable(String tableName) {
+		return "INSERT INTO " + tableName 
+				+ "(Timestamp,SrcAddress) "
+    		+ "VALUES(?,?)";
 	}
 }
