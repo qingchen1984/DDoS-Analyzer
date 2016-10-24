@@ -13,6 +13,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.database.DbStore;
 import com.database.RowContent;
+import com.maxmind.geoip2.DatabaseReader;
+import com.maxmind.geoip2.model.CityResponse;
 
 public class PcapAnalyzer {
 	
@@ -131,10 +133,23 @@ public class PcapAnalyzer {
 		
 		Iterator<RowContent> rowIterator = dbStrore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME).iterator();
 		int i = 0;
-		while (rowIterator.hasNext() && i < 10) {
-			i++;
-			RowContent rc = rowIterator.next();
-			logger.info(rc.getIp());
+		try {
+			File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
+			DatabaseReader reader = new DatabaseReader.Builder(dbFile).build();
+			while (rowIterator.hasNext() && i < 10) {
+				i++;
+				RowContent rc = rowIterator.next();
+				try {
+					CityResponse response = reader.city(rc.getIp());
+				
+				logger.info("IP: " + rc.getIpString() + " city: " + response.getCity().getName());//location.city
+				} catch (Exception ex) {
+					logger.error(ex.getMessage(), ex);
+				}
+			}	
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			logger.error(e.getMessage());
 		}
 	}
 }

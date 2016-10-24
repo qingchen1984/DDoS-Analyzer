@@ -14,7 +14,7 @@ public class RowContent {
 		this.timeInSecs = timeInSecs;
 	}
 	
-	public String getIp() {
+	public String getIpString() {
 		String result = "";
 		try {
 			InetAddress ip = InetAddress.getByAddress(SrcAddress);
@@ -24,6 +24,16 @@ public class RowContent {
 			e.printStackTrace();
 		}
 		return result;
+	}
+	
+	public InetAddress getIp() {
+		try {
+			return InetAddress.getByAddress(SrcAddress);
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 	
 	public long getNumOfPackets() {
