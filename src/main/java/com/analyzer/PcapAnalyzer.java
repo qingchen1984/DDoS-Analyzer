@@ -2,6 +2,7 @@ package com.analyzer;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -11,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.database.DbStore;
+import com.database.RowContent;
 
 public class PcapAnalyzer {
 	
@@ -35,6 +37,7 @@ public class PcapAnalyzer {
 		String databaseName = originalfile.getName();
 		databaseName = databaseName.substring(0, databaseName.indexOf("."));
 		DbStore dbStrore = new DbStore(databaseName, true);
+		
 		dbStrore.clearDbTable();
 		dbStrore.closeAllConnections();
 		
@@ -79,6 +82,8 @@ public class PcapAnalyzer {
 		// Get statistics
 		long packetsProcessed = 0;
 		long packetsRead = 0;
+		long ipV4PacketsRead = 0;
+		long ipV6PacketsRead = 0;
 		long tcpPacketsRead = 0;
 		long udpPacketsRead = 0;
 		long icmpPacketsRead = 0;
@@ -92,6 +97,8 @@ public class PcapAnalyzer {
 			PcapReader pr = iterator.next().getValue();
 			packetsProcessed = packetsProcessed + pr.getPacketsProcessed();
 			packetsRead = packetsRead + pr.getPacketsRead();
+			ipV4PacketsRead = ipV4PacketsRead + pr.getIpV4pPacketsRead();
+			ipV6PacketsRead = ipV6PacketsRead + pr.getIpV6pPacketsRead();
 			tcpPacketsRead = tcpPacketsRead + pr.getTcpPacketsRead();
 			udpPacketsRead = udpPacketsRead + pr.getUdpPacketsRead();
 			icmpPacketsRead = icmpPacketsRead + pr.getIcmpPacketsRead();
@@ -119,6 +126,15 @@ public class PcapAnalyzer {
 			FileUtils.deleteDirectory(new File(dirName));
 		} catch (IOException e) {
 			logger.error(e.getMessage());
+		}
+		
+		
+		Iterator<RowContent> rowIterator = dbStrore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME).iterator();
+		int i = 0;
+		while (rowIterator.hasNext() && i < 10) {
+			i++;
+			RowContent rc = rowIterator.next();
+			logger.info(rc.getIp());
 		}
 	}
 }

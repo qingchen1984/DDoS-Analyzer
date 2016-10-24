@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -225,7 +226,6 @@ public class DbStore {
 		}
 		catch (SQLException e) {
 			logger.error("Database creation failed", e);
-		    e.printStackTrace();
 		} 
 	}
 	
@@ -258,5 +258,31 @@ public class DbStore {
 		return "INSERT INTO " + tableName 
 				+ "(Timestamp,SrcAddress) "
     		+ "VALUES(?,?)";
+	}
+	
+	public ArrayList<RowContent> getDosVictims(String tableName) {
+		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
+		String query = "SELECT "
+				+ "SrcAddress, "
+				+ "COUNT(*) AS packetCount, "
+				+ "(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS totalSeconds "
+				+ "FROM " + tableName + " "
+				+ "GROUP BY SrcAddress ORDER BY packetCount DESC";
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(url, user, password);
+			Statement  statement = connection.createStatement();
+			ResultSet rs = statement.executeQuery(query);
+			while (rs.next()) {
+				resultArr.add(new RowContent(
+								rs.getBytes("SrcAddress"),
+								rs.getLong("packetCount"),
+								rs.getLong("totalSeconds")));
+			}
+		} catch (SQLException e) {
+			logger.error("Database creation failed", e);
+			return null;
+		}
+		return resultArr;
 	}
 }
