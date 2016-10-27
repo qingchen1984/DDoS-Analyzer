@@ -2,6 +2,8 @@ package com.application.controller;
 
 import java.io.File;
 
+import com.analyzer.PcapAnalyzer;
+
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -16,6 +18,7 @@ public class MainApplicationController {
             );
 		
 		File f = fileChooser.showOpenDialog(new Stage());
-		System.out.println(f.getName() + f.length());
+		PcapAnalyzer pcapAnalyzer = new PcapAnalyzer();
+		System.out.println(pcapAnalyzer.isInDB(f));
 	}
 }

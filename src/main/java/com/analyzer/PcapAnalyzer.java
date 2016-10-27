@@ -22,9 +22,37 @@ public class PcapAnalyzer {
 	private static String srcPcapFile = "C:\\Temp\\dataset.pcap.Packets_0.pcap";
 	//private static String srcPcapFile = "C:\\Users\\aavalos\\Documents\\test500.pcap";
 	private static int packetSize = 5000000;
-
+	private Logger logger;
+	
+	public PcapAnalyzer() {
+		logger = LogManager.getLogger();
+	}
+/*
 	public static void main(String[] args) {
-		Logger logger = LogManager.getLogger();
+		
+	}
+	*/
+	
+	/**
+	 * Checks if file was already parsed in the DB.
+	 * 
+	 * @param file File to be checked
+	 * @return true if file has been found parser, false otherwise.
+	 */
+	public boolean isInDB(File file) {
+		String databaseName = parseDbName(file);
+		DbStore db = new DbStore("",false);
+		String[] dbNames = db.getAllDataBaseNames();
+		for (String storedDB : dbNames) {
+			if (databaseName.equals(storedDB)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public void processPcapFile() {
+		
 		String dirName = System.getProperty("java.io.tmpdir") + "pcapTmp";
 		boolean splitFile = false;
 		
@@ -36,8 +64,7 @@ public class PcapAnalyzer {
 		}
 		
 		//create DB and clear from any previous results
-		String databaseName = originalfile.getName();
-		databaseName = databaseName.substring(0, databaseName.indexOf("."));
+		String databaseName = parseDbName(originalfile);
 		DbStore dbStrore = new DbStore(databaseName, true);
 		
 		dbStrore.clearDbTable();
@@ -151,5 +178,17 @@ public class PcapAnalyzer {
 			// TODO Auto-generated catch block
 			logger.error(e.getMessage());
 		}
+	}
+
+	/**
+	 * Gets the database name given a file
+	 * 
+	 * @param file File to get the name from
+	 * @return File containing the name
+	 */
+	private String parseDbName(File file) {
+		String databaseName = file.getName();
+		databaseName = databaseName.substring(0, databaseName.indexOf("."));
+		return databaseName;
 	}
 }

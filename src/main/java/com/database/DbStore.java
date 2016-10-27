@@ -10,6 +10,9 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 
 import org.apache.logging.log4j.Logger;
+
+import com.mysql.cj.jdbc.DatabaseMetaData;
+
 import org.apache.logging.log4j.LogManager;
 
 /**
@@ -280,9 +283,48 @@ public class DbStore {
 								rs.getLong("totalSeconds")));
 			}
 		} catch (SQLException e) {
-			logger.error("Database creation failed", e);
+			logger.error("Database failed", e);
 			return null;
+		} finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
 		}
 		return resultArr;
+	}
+	
+	/**
+	 * Gets all the database names
+	 * 
+	 * @return Array containing the database names
+	 */
+	public String[] getAllDataBaseNames() {
+		ArrayList<String> result = new ArrayList<String>();
+		String query = "SHOW DATABASES";
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(urlNoDb, user, password);
+			DatabaseMetaData meta = (DatabaseMetaData) connection.getMetaData();
+			ResultSet rs = meta.getCatalogs();
+			while (rs.next()) {
+				result.add(rs.getString("TABLE_CAT"));
+			}
+		} catch (SQLException e) {
+			logger.error("Database failed", e);
+			return null;
+		} finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
+		}
+		return result.toArray(new String[result.size()]);
 	}
 }
