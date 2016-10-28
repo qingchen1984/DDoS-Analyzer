@@ -39,7 +39,7 @@ public class PcapAnalyzer {
 	 * @param file File to be checked
 	 * @return true if file has been found parser, false otherwise.
 	 */
-	public boolean isInDB(File file) {
+	public boolean isInDb(File file) {
 		String databaseName = parseDbName(file);
 		DbStore db = new DbStore("",false);
 		String[] dbNames = db.getAllDataBaseNames();
@@ -49,6 +49,11 @@ public class PcapAnalyzer {
 			}
 		}
 		return false;
+	}
+	
+	public String[] getDbNames() {
+		DbStore db = new DbStore("",false);
+		return db.getAllDataBaseNames();
 	}
 	
 	public void processPcapFile() {
