@@ -1,15 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.Accordion?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="mainBorderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.application.controller.MainApplicationController">
+<BorderPane fx:id="mainBorderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="642.0" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.application.controller.MainApplicationController">
    <top>
       <HBox BorderPane.alignment="CENTER">
          <children>
@@ -47,8 +59,198 @@
    <center>
       <SplitPane dividerPositions="0.29797979797979796" prefHeight="160.0" prefWidth="200.0" BorderPane.alignment="CENTER">
         <items>
-          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0" />
-          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0" />
+          <AnchorPane>
+               <children>
+                  <VBox alignment="TOP_CENTER" prefHeight="355.0" prefWidth="175.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                     <children>
+                        <Accordion>
+                          <panes>
+                            <TitledPane animated="false" text="Overview">
+                              <content>
+                                    <AnchorPane>
+                                       <children>
+                                          <VBox prefHeight="65.0" prefWidth="206.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                             <children>
+                                              <Button id="overview_button" alignment="CENTER" mnemonicParsing="false" onAction="#showOverviewData" prefHeight="25.0" prefWidth="188.0" styleClass="view" text="Summary" />
+                                             </children>
+                                          </VBox>
+                                       </children>
+                                    </AnchorPane>
+                              </content>
+                            </TitledPane>
+                            <TitledPane animated="false" text="TCP Flood Info">
+                              <content>
+                                    <AnchorPane>
+                                       <children>
+                                          <VBox prefHeight="200.0" prefWidth="206.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                             <children>
+                                                <Button id="tcp_flood_info_button" mnemonicParsing="false" onAction="#showTcpFloodTable" prefHeight="25.0" prefWidth="179.0" text="TCP Flood Table" />
+                                                <Button id="tcp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="TCP Flood Graph" />
+                                                <Button id="tcp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="TCP Flood Map" />
+                                             </children>
+                                          </VBox>
+                                       </children>
+                                    </AnchorPane>
+                              </content>
+                            </TitledPane>
+                            <TitledPane animated="false" text="UDP Flood Info">
+                              <content>
+                                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                       <children>
+                                          <VBox prefHeight="180.0" prefWidth="186.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                             <children>
+                                                <Button id="tcp_flood_info_button" mnemonicParsing="false" prefHeight="25.0" prefWidth="179.0" text="UDP Flood Table" />
+                                                <Button id="tcp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="UDP Flood Graph" />
+                                                <Button id="tcp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="UDP Flood Map" />
+                                             </children>
+                                          </VBox>
+                                       </children></AnchorPane>
+                              </content>
+                            </TitledPane>
+                              <TitledPane animated="false" layoutX="10.0" layoutY="60.0" text="ICMP Flood Info">
+                                 <content>
+                                    <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                       <children>
+                                          <VBox prefHeight="180.0" prefWidth="186.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                             <children>
+                                                <Button id="tcp_flood_info_button" mnemonicParsing="false" prefHeight="25.0" prefWidth="179.0" text="ICMP Flood Table" />
+                                                <Button id="tcp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="ICMP Flood Graph" />
+                                                <Button id="tcp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="ICMP Flood Map" />
+                                             </children>
+                                          </VBox>
+                                       </children>
+                                    </AnchorPane>
+                                 </content>
+                              </TitledPane>
+                          </panes>
+                        </Accordion>
+                     </children>
+                  </VBox>
+               </children></AnchorPane>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
+               <children>
+                  <StackPane id="result_stack" fx:id="resultStack" layoutX="14.0" layoutY="60.0" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                     <children>
+                        <AnchorPane id="overview_pane">
+                           <children>
+                              <GridPane layoutY="-48.0" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <columnConstraints>
+                                  <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                  <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                </columnConstraints>
+                                <rowConstraints>
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                </rowConstraints>
+                                 <children>
+                                 	<Label alignment="CENTER" prefHeight="17.0" prefWidth="211.0" text="File Statistics" textAlignment="CENTER" GridPane.rowIndex="0">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font></Label>
+                                 	<Label text="File Name: " GridPane.rowIndex="1" />
+                                 	<Label text="File Size" GridPane.rowIndex="2" />
+                                    <Label text="Parse Time" GridPane.rowIndex="3" />
+                                    <Label alignment="CENTER" prefHeight="17.0" prefWidth="208.0" text="Packet Statistics" textAlignment="CENTER" GridPane.rowIndex="4">
+                                    	<font>
+                                          <Font name="System Bold" size="12.0" />
+                                    	</font></Label>
+                                 	<Label text="Total Packets Found: " GridPane.rowIndex="5" />
+                                 	<Label text="IpV4 Packets Found: " GridPane.rowIndex="6" />
+                                 	<Label text="IpV6 Packets Found: " GridPane.rowIndex="7" />
+                                 	<Label text="TCP Packets Found: " GridPane.rowIndex="8" />
+                                 	<Label text="UDP Packets Found: " GridPane.rowIndex="9" />
+                                 	<Label text="ICMP Packets Found: " GridPane.rowIndex="10" />
+                                 	<Label text="Unknown Packets Found: " GridPane.rowIndex="11" />
+                                 	<Label text="Illegal Packets Found: " GridPane.rowIndex="12" />
+                                 	<Label alignment="CENTER" prefHeight="17.0" prefWidth="209.0" text="Packets with DOS possibilities" GridPane.rowIndex="13">
+                                    	<font>
+                                          <Font name="System Bold" size="12.0" />
+                                    	</font></Label>
+                                 	<Label text="Total Packets Processed: " GridPane.rowIndex="14" />
+                                 	<Label text="Total TCP Flood Packets (possible): " GridPane.rowIndex="15" />
+                                    <Label text="Total UDP Flood Packets (possible): " GridPane.rowIndex="16" />
+                                    <Label text="Total ICMP Flood Packets (possible): " GridPane.rowIndex="17" />
+                                    
+                                    <Label id="fileName" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                    <Label id="fileSize" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                    <Label id="parseTime" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                    <Label id="packetsFound" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                                 	<Label id="packetsIpV4" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                                 	<Label id="packetsIpV6" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+                                 	<Label id="packetsTcp" GridPane.columnIndex="1" GridPane.rowIndex="8" />
+                                 	<Label id="packetsUdp" GridPane.columnIndex="1" GridPane.rowIndex="9" />
+                                 	<Label id="packetsIcmp" GridPane.columnIndex="1" GridPane.rowIndex="10" />
+                                 	<Label id="packetsUnknown" GridPane.columnIndex="1" GridPane.rowIndex="11" />
+                                 	<Label id="packetsIllegal" GridPane.columnIndex="1" GridPane.rowIndex="12" />
+                                 	<Label id="packetsProcessed" GridPane.columnIndex="1" GridPane.rowIndex="14" />
+                                 	<Label id="packetsTcpFlood" GridPane.columnIndex="1" GridPane.rowIndex="15" />
+                                    <Label id="packetsUdpFlood" GridPane.columnIndex="1" GridPane.rowIndex="16" />
+                                    <Label id="packetsIcmpFlood" GridPane.columnIndex="1" GridPane.rowIndex="17" />
+                                    
+                                 </children>
+                              </GridPane>
+                           </children>
+                        </AnchorPane>
+                        <AnchorPane id="tcp_flood_table_pane">
+                           <children>
+                              <TableView id="tcp_flood_table" fx:id="tcpFloodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <columns>
+                                  <TableColumn fx:id="ipColumnTcp" prefWidth="75.0" text="IP" />
+                                  <TableColumn fx:id="numOfPacketsColumnTcp" prefWidth="75.0" text="# of Packets" />
+                                    <TableColumn fx:id="attackTimeColumnTcp" prefWidth="75.0" text="Attack time" />
+                                    <TableColumn fx:id="attackRateColumnTcp" prefWidth="75.0" text="Attack Rate" />
+                                    <TableColumn fx:id="countryColumnTcp" prefWidth="75.0" text="Country" />
+                                    <TableColumn fx:id="cityColumnTcp" prefWidth="75.0" text="City" />
+                                </columns>
+                              </TableView>
+                           </children></AnchorPane>
+                        <AnchorPane id="udp_flood_table_pane" layoutX="10.0" layoutY="10.0">
+                           <children>
+                              <TableView id="tcp_flood_table" fx:id="udpFloodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                 <columns>
+                                    <TableColumn fx:id="ipColumnUdp" prefWidth="75.0" text="IP" />
+                                    <TableColumn fx:id="numOfPacketsColumnUdp" prefWidth="75.0" text="# of Packets" />
+                                    <TableColumn fx:id="attackTimeColumnUdp" prefWidth="75.0" text="Attack time" />
+                                    <TableColumn fx:id="attackRateColumnUdp" prefWidth="75.0" text="Attack Rate" />
+                                    <TableColumn fx:id="countryColumnUdp" prefWidth="75.0" text="Country" />
+                                    <TableColumn fx:id="cityColumnUdp" prefWidth="75.0" text="City" />
+                                 </columns>
+                              </TableView>
+                           </children>
+                        </AnchorPane>
+                        <AnchorPane id="icmp_flood_table_pane" layoutX="10.0" layoutY="10.0">
+                           <children>
+                              <TableView id="tcp_flood_table" fx:id="icmpFloodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                 <columns>
+                                    <TableColumn fx:id="ipColumnIcmp" prefWidth="75.0" text="IP" />
+                                    <TableColumn fx:id="numOfPacketsColumnIcmp" prefWidth="75.0" text="# of Packets" />
+                                    <TableColumn fx:id="attackTimeColumnIcmp" prefWidth="75.0" text="Attack time" />
+                                    <TableColumn fx:id="attackRateColumnIcmp" prefWidth="75.0" text="Attack Rate" />
+                                    <TableColumn fx:id="countryColumnIcmp" prefWidth="75.0" text="Country" />
+                                    <TableColumn fx:id="cityColumnIcmp" prefWidth="75.0" text="City" />
+                                 </columns>
+                              </TableView>
+                           </children>
+                        </AnchorPane>
+                     </children>
+                  </StackPane>
+               </children></AnchorPane>
         </items>
       </SplitPane>
    </center>

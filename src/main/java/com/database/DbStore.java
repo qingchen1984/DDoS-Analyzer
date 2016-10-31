@@ -1,16 +1,25 @@
 package com.database;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.apache.logging.log4j.Logger;
 
+import com.maxmind.geoip2.DatabaseReader;
+import com.maxmind.geoip2.exception.GeoIp2Exception;
+import com.maxmind.geoip2.model.CityResponse;
 import com.mysql.cj.jdbc.DatabaseMetaData;
 
 import org.apache.logging.log4j.LogManager;
@@ -25,6 +34,22 @@ public class DbStore {
 	public static final String TCP_FLOODING_TABLE_NAME = "tcpFlood";
 	public static final String UDP_FLOODING_TABLE_NAME = "udpFlood";
 	public static final String ICMP_FLOODING_TABLE_NAME = "icmpFlood";
+	public static final String SUMMARY_TABLE_NAME = "summary";
+	public static final String TOTAL_PACKETS_READ = "packetsTotal";
+	public static final String TOTAL_PACKETS_PROCESSED = "packetsProcessed";
+	public static final String TOTAL_IPV4_PACKETS = "packetsIpV4";
+	public static final String TOTAL_IPV6_PACKETS = "packetsIpV6";
+	public static final String TOTAL_TCP_PACKETS = "packetsTcp";
+	public static final String TOTAL_UDP_PACKETS = "packetsUdp";
+	public static final String TOTAL_ICMP_PACKETS = "packetsIcmp";
+	public static final String TOTAL_UNKNOWN_PACKETS = "packetsUnknown";
+	public static final String TOTAL_ILLEGAL_PACKETS = "packetsIllegal";
+	public static final String TOTAL_TCP_FLOOD_PACKETS = "packetsTcpFlood";
+	public static final String TOTAL_UDP_FLOOD_PACKETS = "packetsUdpFlood";
+	public static final String TOTAL_ICMP_FLOOD_PACKETS = "packetsIcmpFlood";
+	public static final String FILE_NAME = "fileName";
+	public static final String FILE_SIZE = "fileSize";
+	public static final String FILE_PROCESS_TIME = "processTime";
 	private String url;
 	private String urlNoDb;
 	private String user;
@@ -39,7 +64,7 @@ public class DbStore {
 	 * Constructor
 	 * 
 	 * @param dbName Database name to be used.
-	 * @param createDB Flag determining if database should be created.
+	 * @param createDB Flag determining if database should be created/cleared.
 	 */
 	public DbStore(String dbName, boolean createDB){
 		logger = LogManager.getLogger(DbStore.class);
@@ -188,26 +213,13 @@ public class DbStore {
 		}
 	}
 	
-	public void clearDbTable() {
-		Connection connection = null;
+	private void clearDbTable(String dbName, Connection connection) throws SQLException {
 		Statement st = null;
-		try {
-			connection = DriverManager.getConnection(url, user, password);
-			st = connection.createStatement();
-			st.executeUpdate("TRUNCATE " + TCP_FLOODING_TABLE_NAME);
-			st.executeUpdate("TRUNCATE " + UDP_FLOODING_TABLE_NAME);
-			st.executeUpdate("TRUNCATE " + ICMP_FLOODING_TABLE_NAME);
-		} catch (SQLException e) {
-			logger.error(e.getMessage(), e);
-		} finally {
-			try {
-				if (st != null) st.close();
-				if (connection != null) connection.close();
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-			}
-		}
-		
+		st = connection.createStatement();
+		st.executeUpdate("TRUNCATE " + dbName + "." + TCP_FLOODING_TABLE_NAME);
+		st.executeUpdate("TRUNCATE " + dbName + "." + UDP_FLOODING_TABLE_NAME);
+		st.executeUpdate("TRUNCATE " + dbName + "." + ICMP_FLOODING_TABLE_NAME);
+		st.close();
 	}
 	
 	/**
@@ -226,10 +238,20 @@ public class DbStore {
 		    createTable(TCP_FLOODING_TABLE_NAME, dbName, connection);
 		    createTable(UDP_FLOODING_TABLE_NAME, dbName, connection);
 		    createTable(ICMP_FLOODING_TABLE_NAME, dbName, connection);
+		    createSummaryTable(dbName, connection);
+		    clearDbTable(dbName, connection);
 		}
 		catch (SQLException e) {
 			logger.error("Database creation failed", e);
-		} 
+		} finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					logger.error("Database close connection failed", e);
+				}
+			}
+		}
 	}
 	
 	/**
@@ -249,6 +271,135 @@ public class DbStore {
 
 	    Statement stmt = connection.createStatement();
 	    stmt.execute(sqlCreate);
+	    stmt.close();
+	}
+	
+	/**
+	 * Creates a Summary table using the given database name and connection.
+	 * 
+	 * @param dbName Database name to use
+	 * @param connection Connection to be used
+	 * @throws SQLException
+	 */
+	private void createSummaryTable(String dbName, Connection connection) throws SQLException {
+		String sqlCreate =
+    		"CREATE TABLE IF NOT EXISTS " + dbName + "." + SUMMARY_TABLE_NAME + " ("
+				+ FILE_NAME + " TEXT, "
+				+ FILE_SIZE + " BIGINT, "
+				+ FILE_PROCESS_TIME + " BIGINT, "
+				+ TOTAL_PACKETS_READ + " BIGINT, "
+				+ TOTAL_PACKETS_PROCESSED + " BIGINT, "
+				+ TOTAL_IPV4_PACKETS + " BIGINT, "
+				+ TOTAL_IPV6_PACKETS + " BIGINT, "
+				+ TOTAL_TCP_PACKETS + " BIGINT, "
+				+ TOTAL_UDP_PACKETS + " BIGINT, "
+				+ TOTAL_ICMP_PACKETS + " BIGINT, "
+				+ TOTAL_UNKNOWN_PACKETS + " BIGINT, "
+				+ TOTAL_ILLEGAL_PACKETS + " BIGINT, "
+				+ TOTAL_TCP_FLOOD_PACKETS + " BIGINT, "
+				+ TOTAL_UDP_FLOOD_PACKETS + " BIGINT, "
+				+ TOTAL_ICMP_FLOOD_PACKETS + " BIGINT )";
+		    
+	    Statement stmt = connection.createStatement();
+	    stmt.execute(sqlCreate);
+	    stmt.close();
+	}
+
+	public void setSummaryTable(String fileName, long fileSize, 
+			long processTime, HashMap<String, Long> packets) {
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(url, user, password);
+		    String sqlInsert =
+		    	"INSERT INTO " + SUMMARY_TABLE_NAME + " ("
+		    			+ FILE_NAME + "," + FILE_SIZE + "," + FILE_PROCESS_TIME + ","
+	    				+ TOTAL_PACKETS_READ + "," + TOTAL_PACKETS_PROCESSED + ","
+	    				+ TOTAL_IPV4_PACKETS + "," + TOTAL_IPV6_PACKETS + ","
+	    				+ TOTAL_TCP_PACKETS + "," + TOTAL_UDP_PACKETS + ","
+	    				+ TOTAL_ICMP_PACKETS + "," + TOTAL_UNKNOWN_PACKETS + ","
+	    				+ TOTAL_ILLEGAL_PACKETS + "," + TOTAL_TCP_FLOOD_PACKETS + ","
+	    				+ TOTAL_UDP_FLOOD_PACKETS + "," + TOTAL_ICMP_FLOOD_PACKETS + ") "
+    				+ "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		    
+		    PreparedStatement preparedStmt = connection.prepareStatement(sqlInsert);
+		    preparedStmt.setString(1, fileName);
+		    preparedStmt.setLong(2, fileSize);
+		    preparedStmt.setLong(3, processTime);
+		    preparedStmt.setLong(4, packets.get(TOTAL_PACKETS_READ));
+		    preparedStmt.setLong(5, packets.get(TOTAL_PACKETS_PROCESSED));
+		    preparedStmt.setLong(6, packets.get(TOTAL_IPV4_PACKETS));
+		    preparedStmt.setLong(7, packets.get(TOTAL_IPV6_PACKETS));
+		    preparedStmt.setLong(8, packets.get(TOTAL_TCP_PACKETS));
+		    preparedStmt.setLong(9, packets.get(TOTAL_UDP_PACKETS));
+		    preparedStmt.setLong(10, packets.get(TOTAL_ICMP_PACKETS));
+		    preparedStmt.setLong(11, packets.get(TOTAL_UNKNOWN_PACKETS));
+		    preparedStmt.setLong(12, packets.get(TOTAL_ILLEGAL_PACKETS));
+		    preparedStmt.setLong(13, packets.get(TOTAL_TCP_FLOOD_PACKETS));
+		    preparedStmt.setLong(14, packets.get(TOTAL_UDP_FLOOD_PACKETS));
+		    preparedStmt.setLong(15, packets.get(TOTAL_ICMP_FLOOD_PACKETS));
+		    preparedStmt.execute();
+		    preparedStmt.close();
+		} catch (SQLException e) {
+			logger.error("Database failed while creating summary table ", e);
+		} finally {
+			try {
+				if (connection != null) {
+					connection.close();
+				}
+			} catch (SQLException e) {
+				logger.error("Database close connection failed", e);
+			}
+		}
+	}
+	
+	/**
+	 * Gets the summary and statistics for the file previously processed.
+	 * The result will be populated in the input parameters.
+	 * 
+	 * @param fileName File name from the PCAP file that was processed.
+	 * @param fileSize File size from the PCAP file that was processed.
+	 * @param processTime Process time from the PCAP file that was processed.
+	 * @param packets HashMap containing the packet statistics
+	 * @return true if successful in getting the info, false otherwise.
+	 */
+	public boolean getSummaryTable(HashMap<String, Object> statistics) {
+		boolean result = false;
+		String query = "SELECT * FROM " + SUMMARY_TABLE_NAME + " LIMIT 1";
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(url, user, password);
+			Statement  statement = connection.createStatement();
+			ResultSet rs = statement.executeQuery(query);
+			if(rs.next()) {
+				statistics.put(FILE_NAME, rs.getString(FILE_NAME));
+				statistics.put(FILE_SIZE, rs.getLong(FILE_SIZE));
+				statistics.put(FILE_PROCESS_TIME, rs.getLong(FILE_PROCESS_TIME));
+				statistics.put(TOTAL_PACKETS_READ, rs.getLong(TOTAL_PACKETS_READ));
+				statistics.put(TOTAL_PACKETS_PROCESSED, rs.getLong(TOTAL_PACKETS_PROCESSED));
+				statistics.put(TOTAL_IPV4_PACKETS, rs.getLong(TOTAL_IPV4_PACKETS));
+				statistics.put(TOTAL_IPV6_PACKETS, rs.getLong(TOTAL_IPV6_PACKETS));
+				statistics.put(TOTAL_TCP_PACKETS, rs.getLong(TOTAL_TCP_PACKETS));
+				statistics.put(TOTAL_UDP_PACKETS, rs.getLong(TOTAL_UDP_PACKETS));
+				statistics.put(TOTAL_ICMP_PACKETS, rs.getLong(TOTAL_ICMP_PACKETS));
+				statistics.put(TOTAL_UNKNOWN_PACKETS, rs.getLong(TOTAL_UNKNOWN_PACKETS));
+				statistics.put(TOTAL_ILLEGAL_PACKETS, rs.getLong(TOTAL_ILLEGAL_PACKETS));
+				statistics.put(TOTAL_TCP_FLOOD_PACKETS, rs.getLong(TOTAL_TCP_FLOOD_PACKETS));
+				statistics.put(TOTAL_UDP_FLOOD_PACKETS, rs.getLong(TOTAL_UDP_FLOOD_PACKETS));
+				statistics.put(TOTAL_ICMP_FLOOD_PACKETS, rs.getLong(TOTAL_ICMP_FLOOD_PACKETS));
+			    result = true;
+			}
+		} catch (SQLException e) {
+			logger.error("Database failed", e);
+		} finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
+		}
+		return result;
 	}
 	
 	/**
@@ -276,11 +427,38 @@ public class DbStore {
 			connection = DriverManager.getConnection(url, user, password);
 			Statement  statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(query);
+			File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
+			DatabaseReader reader = null;
+			try {
+				reader = new DatabaseReader.Builder(dbFile).build();
+			} catch (IOException e) {
+				logger.error("Error found while loading Geo-location database", e.getMessage());
+			}
 			while (rs.next()) {
+				InetAddress ip = null;
+				String address = "Unknown";
+				try {
+					ip = InetAddress.getByAddress(rs.getBytes("SrcAddress"));
+					address = ip.getHostAddress();
+				} catch (UnknownHostException e) {
+					logger.error("Error encountered parsing byte[] address ", e.getMessage());
+				}
+				CityResponse response;
+				String country = "Unknown";
+				String city = "Unknown";
+				try {
+					response = reader.city(ip);
+					country = response.getCountry().getName();
+					city = response.getCity().getName();
+				} catch (IOException | GeoIp2Exception e) {
+					logger.error("Error encountered parsing country/city ", e.getMessage());
+				}
 				resultArr.add(new RowContent(
-								rs.getBytes("SrcAddress"),
-								rs.getLong("packetCount"),
-								rs.getLong("totalSeconds")));
+						address,
+						rs.getLong("packetCount"),
+						rs.getLong("totalSeconds"),
+						country,
+						city));
 			}
 		} catch (SQLException e) {
 			logger.error("Database failed", e);
@@ -304,7 +482,6 @@ public class DbStore {
 	 */
 	public String[] getAllDataBaseNames() {
 		ArrayList<String> result = new ArrayList<String>();
-		String query = "SHOW DATABASES";
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(urlNoDb, user, password);

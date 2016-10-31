@@ -19,8 +19,28 @@ import com.maxmind.geoip2.model.CityResponse;
 public class PcapAnalyzer {
 	
 	//private static String srcPcapFile = "C:\\Users\\aavalos\\Downloads\\dataset.pcap";
-	private static String srcPcapFile = "C:\\Temp\\dataset.pcap.Packets_0.pcap";
+	//private static String srcPcapFile = "C:\\Temp\\dataset.pcap.Packets_0.pcap";
 	//private static String srcPcapFile = "C:\\Users\\aavalos\\Documents\\test500.pcap";
+	public static final String TCP_FLOODING_TABLE_NAME = DbStore.TCP_FLOODING_TABLE_NAME;
+	public static final String UDP_FLOODING_TABLE_NAME = DbStore.UDP_FLOODING_TABLE_NAME;
+	public static final String ICMP_FLOODING_TABLE_NAME = DbStore.ICMP_FLOODING_TABLE_NAME;
+	public static final String TOTAL_PACKETS_READ = DbStore.TOTAL_PACKETS_READ;
+	public static final String TOTAL_PACKETS_PROCESSED = DbStore.TOTAL_PACKETS_PROCESSED;
+	public static final String TOTAL_IPV4_PACKETS = DbStore.TOTAL_IPV4_PACKETS;
+	public static final String TOTAL_IPV6_PACKETS = DbStore.TOTAL_IPV6_PACKETS;
+	public static final String TOTAL_TCP_PACKETS = DbStore.TOTAL_TCP_PACKETS;
+	public static final String TOTAL_UDP_PACKETS = DbStore.TOTAL_UDP_PACKETS;
+	public static final String TOTAL_ICMP_PACKETS = DbStore.TOTAL_ICMP_PACKETS;
+	public static final String TOTAL_UNKNOWN_PACKETS = DbStore.TOTAL_UNKNOWN_PACKETS;
+	public static final String TOTAL_ILLEGAL_PACKETS = DbStore.TOTAL_ILLEGAL_PACKETS;
+	public static final String TOTAL_TCP_FLOOD_PACKETS = DbStore.TOTAL_TCP_FLOOD_PACKETS;
+	public static final String TOTAL_UDP_FLOOD_PACKETS = DbStore.TOTAL_UDP_FLOOD_PACKETS;
+	public static final String TOTAL_ICMP_FLOOD_PACKETS = DbStore.TOTAL_ICMP_FLOOD_PACKETS;
+	public static final String FILE_NAME = DbStore.FILE_NAME;
+	public static final String FILE_SIZE = DbStore.FILE_SIZE;
+	public static final String FILE_PROCESS_TIME = DbStore.FILE_PROCESS_TIME;
+	private HashMap<String,Object> statistics = new HashMap<String,Object>();
+	private HashMap<String,ArrayList<RowContent>> dosStatistics = new HashMap<String,ArrayList<RowContent>>();
 	private static int packetSize = 5000000;
 	private Logger logger;
 	
@@ -56,34 +76,29 @@ public class PcapAnalyzer {
 		return db.getAllDataBaseNames();
 	}
 	
-	public void processPcapFile() {
+	public void processPcapFile(File originalfile) {
 		
 		String dirName = System.getProperty("java.io.tmpdir") + "pcapTmp";
 		boolean splitFile = false;
 		
-		
-		File originalfile = new File(srcPcapFile);
+		// Calculate if file needs feeding depending on size.
 		File[] files = null;
 		if (originalfile.length() > 1 * 1024 * 1024 * 1024) {
 			splitFile = true;
 		}
 		
-		//create DB and clear from any previous results
+		// Create DB
 		String databaseName = parseDbName(originalfile);
-		DbStore dbStrore = new DbStore(databaseName, true);
-		
-		dbStrore.clearDbTable();
-		dbStrore.closeAllConnections();
-		
+		DbStore dbStore = new DbStore(databaseName, true);
 		
 		long startTime = System.currentTimeMillis();
 		
 		if (splitFile) {
-			//Split pcap file
+			// Split pcap file
 			PcapManager pm = new PcapManager();
-			pm.pcapSplitter(srcPcapFile, dirName, packetSize);
+			pm.pcapSplitter(originalfile.getPath(), dirName, packetSize);
 			
-			//Get the file from tmp dir
+			// Get the file from tmp dir
 			File f = new File(dirName);
 			files = f.listFiles();
 		} else {
@@ -91,7 +106,7 @@ public class PcapAnalyzer {
 			files[0] = originalfile;
 		}
 		
-		//Parse each file in separate threads
+		// Parse each file in separate threads
 		HashMap<Thread, PcapReader> threadArr = new HashMap<Thread, PcapReader>();
 		for(File file: files){
 			logger.info("File name: " + file.getName());
@@ -142,6 +157,23 @@ public class PcapAnalyzer {
 			udpFloodPacketsRead = udpFloodPacketsRead + pr.getUdpFloodPacketsRead();
 			icmpFloodPacketsRead = icmpFloodPacketsRead + pr.getIcmpFloodPacketsRead();
 		}
+		HashMap<String,Long> infoPackets = new HashMap<String,Long>();
+		infoPackets.put("packetsTotal", packetsRead);
+		infoPackets.put("packetsProcessed", packetsProcessed);
+		infoPackets.put("packetsIpV4", ipV4PacketsRead);
+		infoPackets.put("packetsIpV6", ipV6PacketsRead);
+		infoPackets.put("packetsTcp", tcpPacketsRead);
+		infoPackets.put("packetsUdp", udpPacketsRead);
+		infoPackets.put("packetsIcmp", icmpPacketsRead);
+		infoPackets.put("packetsUnknown", unknownPacketsRead);
+		infoPackets.put("packetsIllegal", illegalPacketsRead);
+		infoPackets.put("packetsTcpFlood",tcpFloodPacketsRead);
+		infoPackets.put("packetsUdpFlood",udpFloodPacketsRead);
+		infoPackets.put("packetsIcmpFlood", icmpFloodPacketsRead);
+		
+		// Save statistics 
+		dbStore.setSummaryTable(originalfile.getName(), originalfile.length(), 
+				(endTime - startTime), infoPackets);
 		
 		logger.info("All threads completed in: " + (endTime - startTime)/1000 + " seconds");
 		logger.info("Packets read: " + packetsRead);
@@ -163,26 +195,26 @@ public class PcapAnalyzer {
 		}
 		
 		
-		Iterator<RowContent> rowIterator = dbStrore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME).iterator();
-		int i = 0;
-		try {
-			File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
-			DatabaseReader reader = new DatabaseReader.Builder(dbFile).build();
-			while (rowIterator.hasNext() && i < 10) {
-				i++;
-				RowContent rc = rowIterator.next();
-				try {
-					CityResponse response = reader.city(rc.getIp());
-				
-				logger.info("IP: " + rc.getIpString() + " city: " + response.getCity().getName());//location.city
-				} catch (Exception ex) {
-					logger.error(ex.getMessage(), ex);
-				}
-			}	
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			logger.error(e.getMessage());
-		}
+		
+	}
+	
+	public void loadProcessedData(String dbName) {
+		DbStore dbStore = new DbStore(dbName, false);
+		// Load statistics
+		dbStore.getSummaryTable(statistics);
+		
+		dosStatistics.put(TCP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.TCP_FLOODING_TABLE_NAME));
+		dosStatistics.put(UDP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.UDP_FLOODING_TABLE_NAME));
+		dosStatistics.put(ICMP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME));
+		
+	}
+	
+	public Object getStatisticss(String key) {
+		return statistics.get(key);
+	}
+	
+	public ArrayList<RowContent> getDosVictims(String key) {
+		return dosStatistics.get(key);
 	}
 
 	/**
