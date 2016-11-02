@@ -31,5 +31,6 @@
 			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="DDoS-Analyzer/lib/jnetpcapNative"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="lib/GMapsFX-2.0.8/GMapsFX-2.0.8.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

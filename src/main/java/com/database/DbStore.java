@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CityResponse;
+import com.maxmind.geoip2.record.Location;
 import com.mysql.cj.jdbc.DatabaseMetaData;
 
 import org.apache.logging.log4j.LogManager;
@@ -434,6 +435,12 @@ public class DbStore {
 			} catch (IOException e) {
 				logger.error("Error found while loading Geo-location database", e.getMessage());
 			}
+			CityResponse response;
+			String country;
+			String city;
+			double latitude;
+			double longitude;
+			Location location;
 			while (rs.next()) {
 				InetAddress ip = null;
 				String address = "Unknown";
@@ -443,22 +450,28 @@ public class DbStore {
 				} catch (UnknownHostException e) {
 					logger.error("Error encountered parsing byte[] address ", e.getMessage());
 				}
-				CityResponse response;
-				String country = "Unknown";
-				String city = "Unknown";
+				response = null;
+				country = "Unknown";
+				city = "Unknown";
+				latitude = 0;
+				longitude = 0;
+				location = null;
 				try {
 					response = reader.city(ip);
 					country = response.getCountry().getName();
 					city = response.getCity().getName();
+					if (city == null || city == "") city = "Unknown";
+					location = response.getLocation();
+					latitude = location.getLatitude();
+					longitude = location.getLongitude();
 				} catch (IOException | GeoIp2Exception e) {
-					logger.error("Error encountered parsing country/city ", e.getMessage());
+					logger.error("Error encountered parsing country/city/location ", e.getMessage());
 				}
 				resultArr.add(new RowContent(
 						address,
 						rs.getLong("packetCount"),
 						rs.getLong("totalSeconds"),
-						country,
-						city));
+						country, city, latitude, longitude));
 			}
 		} catch (SQLException e) {
 			logger.error("Database failed", e);

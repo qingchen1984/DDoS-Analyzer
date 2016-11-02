@@ -7,6 +7,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ResourceBundle;
 
@@ -25,11 +26,13 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -37,7 +40,19 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-public class MainApplicationController implements Initializable {
+import com.lynden.gmapsfx.GoogleMapView;
+import com.lynden.gmapsfx.MapComponentInitializedListener;
+import com.lynden.gmapsfx.javascript.object.GoogleMap;
+import com.lynden.gmapsfx.javascript.object.InfoWindow;
+import com.lynden.gmapsfx.javascript.object.InfoWindowOptions;
+import com.lynden.gmapsfx.javascript.object.LatLong;
+import com.lynden.gmapsfx.javascript.object.MapOptions;
+import com.lynden.gmapsfx.javascript.object.MapShape;
+import com.lynden.gmapsfx.javascript.object.MapTypeIdEnum;
+import com.lynden.gmapsfx.javascript.object.Marker;
+import com.lynden.gmapsfx.javascript.object.MarkerOptions;
+
+public class MainApplicationController implements Initializable, MapComponentInitializedListener{
 	
 	@FXML private BorderPane mainBorderPane;
 	@FXML private StackPane resultStack;
@@ -62,10 +77,22 @@ public class MainApplicationController implements Initializable {
 	@FXML private TableColumn<RowContent, String> attackRateColumnIcmp;
 	@FXML private TableColumn<RowContent, String> countryColumnIcmp;
 	@FXML private TableColumn<RowContent, String> cityColumnIcmp;
+	@FXML GoogleMapView mapView;
+	private GoogleMap map;
 	private ObservableList<RowContent> tcpFloodData;
 	private ObservableList<RowContent> udpFloodData;
 	private ObservableList<RowContent> icmpFloodData;
+	private HashMap<String, TableColumn<RowContent, String>> tcpColumnMap;
+	private HashMap<String, TableColumn<RowContent, String>> udpColumnMap;
+	private HashMap<String, TableColumn<RowContent, String>> icmpColumnMap;
+	private boolean isTcpMapSelected = false;
+	private boolean isUdpMapSelected = false;
+	private boolean isIcmpMapSelected = false;
+	private boolean isMapInitialized = false;
+	private MapOptions mapOptions;
 	
+	
+
 	/**
 	 * Opens dialog for users to select a PCAP file to be processed.
 	 * 
@@ -113,7 +140,8 @@ public class MainApplicationController implements Initializable {
 			if(dbName != null) {
 				PcapAnalyzer pcapAnalyzer = new PcapAnalyzer();
 				pcapAnalyzer.loadProcessedData(dbName);
-				
+				Iterator<RowContent> iterator;
+				RowContent rc;
 				ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
 				tcpFloodData = FXCollections.observableArrayList(tcpVictims);
 				
@@ -125,7 +153,6 @@ public class MainApplicationController implements Initializable {
 				
 				loadOverviewData(pcapAnalyzer);
 				showOverviewData();
-				//showTcpFloodTable();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -160,18 +187,40 @@ public class MainApplicationController implements Initializable {
 		showResultView("#overview_pane");
 	}
 
-	public void showTcpFloodTable(ActionEvent event) {
+	/**
+	 * Displays the pane containing the TCP Flood table and populate its contents.
+	 * 
+	 * @param event
+	 */
+	public void showFloodTable(ActionEvent event) {
+		Button srcButton = (Button) event.getSource();
+		String id = srcButton.getId();
+		if (id.contains("tcp")) {
+			String paneView = "#tcp_flood_table_pane";
+			setUpFloodTable(paneView, tcpColumnMap, tcpFloodData, tcpFloodTable);
+		} else if (id.contains("udp")) {
+			String paneView = "#udp_flood_table_pane";
+			setUpFloodTable(paneView, udpColumnMap, udpFloodData, udpFloodTable);
+		} else if (id.contains("icmp")) {
+			String paneView = "#icmp_flood_table_pane";
+			setUpFloodTable(paneView, icmpColumnMap, icmpFloodData, icmpFloodTable);
+		} else {
+			System.out.println("Button id not recognized: " + id);
+		}
+	}
+
+	private void setUpFloodTable(String paneView, HashMap<String, TableColumn<RowContent, String>> columnMap, ObservableList<RowContent> data, TableView<RowContent> floodTable) {
 		//Need to show pane first since "setCellValueFactory" needs it.
-		showResultView("#tcp_flood_table_pane");
-		
-		ipColumnTcp.setCellValueFactory(new PropertyValueFactory<RowContent, String>("srcAddress"));
-		numOfPacketsColumnTcp.setCellValueFactory(new PropertyValueFactory<RowContent, String>("numOfPackets"));
-		attackTimeColumnTcp.setCellValueFactory(new PropertyValueFactory<RowContent, String>("timeInSecs"));
-		attackRateColumnTcp.setCellValueFactory(new PropertyValueFactory<RowContent, String>("attackRate"));
-		countryColumnTcp.setCellValueFactory(new PropertyValueFactory<RowContent, String>("country"));
-		cityColumnTcp.setCellValueFactory(new PropertyValueFactory<RowContent, String>("city"));
+		showResultView(paneView);
+		// Setup the columns with the correct variable of RowContent
+		columnMap.get(RowContent.SOURCE_ADDRESS).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.SOURCE_ADDRESS));
+		columnMap.get(RowContent.NUMBER_OF_PACKETS).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.NUMBER_OF_PACKETS));
+		columnMap.get(RowContent.ATTACK_TIME_IN_SECONDS).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.ATTACK_TIME_IN_SECONDS));
+		columnMap.get(RowContent.ATTACK_RATE).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.ATTACK_RATE));
+		columnMap.get(RowContent.COUNTRY_NAME).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.COUNTRY_NAME));
+		columnMap.get(RowContent.CITY_NAME).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.CITY_NAME));
 		// Fill up the table
-		tcpFloodTable.setItems(tcpFloodData);
+		floodTable.setItems(data);
 	}
 	
 	/**
@@ -204,9 +253,103 @@ public class MainApplicationController implements Initializable {
 		hideAllResultViews();
 		resultStack.lookup(id).setVisible(true);
 	}
+	
+	public void showMap(ActionEvent event) {
+		Button srcButton = (Button) event.getSource();
+		String id = srcButton.getId();
+		if (id.contains("tcp")) {
+			setUpMap(tcpFloodData);
+		} else if (id.contains("udp")) {
+			setUpMap(udpFloodData);
+
+		} else if (id.contains("icmp")) {
+			setUpMap(icmpFloodData);
+		} else {
+			System.out.println("Button id not recognized: " + id);
+		}
+		showResultView("#map_pane");
+	}
 
 	@Override
 	public void initialize(URL arg0, ResourceBundle arg1) {
 		hideAllResultViews();
+		tcpColumnMap = new HashMap<String, TableColumn<RowContent, String>>();
+		tcpColumnMap.put(RowContent.SOURCE_ADDRESS, ipColumnTcp);
+		tcpColumnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumnTcp);
+		tcpColumnMap.put(RowContent.ATTACK_TIME_IN_SECONDS, attackTimeColumnTcp);
+		tcpColumnMap.put(RowContent.ATTACK_RATE, attackRateColumnTcp);
+		tcpColumnMap.put(RowContent.COUNTRY_NAME, countryColumnTcp);
+		tcpColumnMap.put(RowContent.CITY_NAME, cityColumnTcp);
+		
+		udpColumnMap = new HashMap<String, TableColumn<RowContent, String>>();
+		udpColumnMap.put(RowContent.SOURCE_ADDRESS, ipColumnUdp);
+		udpColumnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumnUdp);
+		udpColumnMap.put(RowContent.ATTACK_TIME_IN_SECONDS, attackTimeColumnUdp);
+		udpColumnMap.put(RowContent.ATTACK_RATE, attackRateColumnUdp);
+		udpColumnMap.put(RowContent.COUNTRY_NAME, countryColumnUdp);
+		udpColumnMap.put(RowContent.CITY_NAME, cityColumnUdp);
+		
+		icmpColumnMap = new HashMap<String, TableColumn<RowContent, String>>();
+		icmpColumnMap.put(RowContent.SOURCE_ADDRESS, ipColumnIcmp);
+		icmpColumnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumnIcmp);
+		icmpColumnMap.put(RowContent.ATTACK_TIME_IN_SECONDS, attackTimeColumnIcmp);
+		icmpColumnMap.put(RowContent.ATTACK_RATE, attackRateColumnIcmp);
+		icmpColumnMap.put(RowContent.COUNTRY_NAME, countryColumnIcmp);
+		icmpColumnMap.put(RowContent.CITY_NAME, cityColumnIcmp);
+		
+		mapView.addMapInializedListener(this);
+	    
+		
+	}
+
+	/* (non-Javadoc)
+	 * @see com.lynden.gmapsfx.MapComponentInitializedListener#mapInitialized()
+	 */
+	@Override
+	public void mapInitialized() {
+		 //Set the initial properties of the map.
+		mapOptions = new MapOptions();
+
+	    mapOptions.center(new LatLong(0, 0))
+	    		.mapType(MapTypeIdEnum.ROADMAP)
+	            .overviewMapControl(false)
+	            .panControl(false)
+	            .rotateControl(false)
+	            .scaleControl(false)
+	            .streetViewControl(false)
+	            .zoomControl(false)
+	            .zoom(1);
+		//create blank map
+	    //map = mapView.createMap(mapOptions);
+        
+	}
+
+	/**
+	 * Sets up and displays map containing markers for each item in the ObservableList
+	 * 
+	 * @param data List of RowContent containing the information for the markers.
+	 */
+	private void setUpMap(ObservableList<RowContent> data) {
+		map = mapView.createMap(mapOptions);
+		if (data == null) return;
+		Iterator<RowContent> iterator = data.iterator();
+		RowContent rc;
+		while (iterator.hasNext()) {
+			rc = iterator.next();
+			double latt = rc.getLatitude();
+			double longt =  rc.getLongitude();
+			// Skip if data is empty
+			if (latt == 0 && longt == 0) continue;  
+			LatLong latLong = new LatLong(latt,longt);
+			//Add marker to the map
+			MarkerOptions markerOptions = new MarkerOptions();
+			markerOptions.position(latLong);
+			markerOptions.title("IP: " + rc.getSrcAddress() + "\n"
+							+ "Country: " + rc.getCountry() + "\n"
+							+ "City: " + rc.getCity());
+			Marker marker = new Marker(markerOptions);
+			map.addMarker( marker );
+		}
+		
 	}
 }

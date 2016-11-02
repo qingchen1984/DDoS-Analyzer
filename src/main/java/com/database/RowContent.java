@@ -10,12 +10,20 @@ import java.net.UnknownHostException;
  *
  */
 public class RowContent {
+	public static final String SOURCE_ADDRESS = "srcAddress";
+	public static final String NUMBER_OF_PACKETS = "numOfPackets";
+	public static final String ATTACK_TIME_IN_SECONDS = "timeInSecs";
+	public static final String ATTACK_RATE = "attackRate";
+	public static final String COUNTRY_NAME = "country";
+	public static final String CITY_NAME = "city";
 	private String srcAddress;
 	private long numOfPackets;
 	private long timeInSecs;
 	private long attackRate;
 	private String country;
 	private String city;
+	private double latitude;
+	private double longitude;
 	
 	/**
 	 * Constructor
@@ -26,7 +34,8 @@ public class RowContent {
 	 * @param country Country of srcAddress
 	 * @param city City of srcAddress
 	 */
-	RowContent(String srcAddress, long numOfPackets, long timeInSecs, String country, String city) {
+	RowContent(String srcAddress, long numOfPackets, long timeInSecs, 
+			String country, String city, double latitude, double longitude) {
 		this.srcAddress = srcAddress;
 		this.numOfPackets = numOfPackets;
 		this.timeInSecs = timeInSecs;
@@ -37,7 +46,8 @@ public class RowContent {
 		} else {
 			attackRate = numOfPackets;
 		}
-		
+		this.latitude = latitude;
+		this.longitude = longitude;
 	}
 
 	/**
@@ -147,4 +157,42 @@ public class RowContent {
 	public void setCity(String city) {
 		this.city = city;
 	}
+
+	/**
+	 * Gets the value of latitude
+	 *
+	 * @return the latitude
+	 */
+	public double getLatitude() {
+		return latitude;
+	}
+
+	/**
+	 * Sets the value of latitude
+	 *
+	 * @param latitude the latitude to set
+	 */
+	public void setLatitude(double latitude) {
+		this.latitude = latitude;
+	}
+
+	/**
+	 * Gets the value of longitude
+	 *
+	 * @return the longitude
+	 */
+	public double getLongitude() {
+		return longitude;
+	}
+
+	/**
+	 * Sets the value of longitude
+	 *
+	 * @param longitude the longitude to set
+	 */
+	public void setLongitude(double longitude) {
+		this.longitude = longitude;
+	}
+	
+	
 }
