@@ -24,7 +24,6 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
-<?import com.lynden.gmapsfx.*?>
 
 <BorderPane fx:id="mainBorderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="642.0" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.application.controller.MainApplicationController">
    <top>
@@ -72,60 +71,89 @@
                           <panes>
                             <TitledPane animated="false" text="Overview">
                               <content>
-                                    <AnchorPane>
+                                    <VBox>
                                        <children>
-                                          <VBox prefHeight="65.0" prefWidth="206.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                          <AnchorPane VBox.vgrow="NEVER">
                                              <children>
-                                              <Button id="overview_button" alignment="CENTER" mnemonicParsing="false" onAction="#showOverviewData" prefHeight="25.0" prefWidth="188.0" styleClass="view" text="Summary" />
-                                                <Button id="dos_rate_button" alignment="CENTER" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#showDosRate" prefHeight="25.0" prefWidth="188.0" styleClass="view" text="DOS rate" />
+                                              <Button id="overview_button" alignment="CENTER" layoutX="9.600000381469727" layoutY="9.600000381469727" mnemonicParsing="false" onAction="#showOverviewData" prefWidth="186.0" styleClass="view" text="Summary" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                                              </children>
-                                          </VBox>
+                                          </AnchorPane>
+                                          <AnchorPane VBox.vgrow="NEVER">
+                                             <children>
+                                                <Button id="dos_rate_button" alignment="CENTER" mnemonicParsing="false" onAction="#showDosRate" prefWidth="186.0" styleClass="view" text="DOS rate" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
                                        </children>
-                                    </AnchorPane>
+                                    </VBox>
                               </content>
                             </TitledPane>
                             <TitledPane animated="false" text="TCP Flood Info">
                               <content>
-                                    <AnchorPane>
+                                    <VBox prefHeight="200.0" prefWidth="206.0">
                                        <children>
-                                          <VBox prefHeight="200.0" prefWidth="206.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                          <AnchorPane>
                                              <children>
-                                                <Button id="tcp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="179.0" text="TCP Flood Table" />
-                                                <Button id="tcp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="TCP Flood Graph" />
-                                                <Button id="tcp_flood_map_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#showMap" prefWidth="175.0" text="TCP Flood Map" />
+                                                <Button id="tcp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="180.0" text="TCP Flood Table" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                                              </children>
-                                          </VBox>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="tcp_flood_info_button" mnemonicParsing="false" prefHeight="25.0" prefWidth="176.0" text="TCP Flood Graph" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="tcp_flood_map_button" mnemonicParsing="false" onAction="#showMap" prefHeight="25.0" prefWidth="176.0" text="TCP Flood Map" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
                                        </children>
-                                    </AnchorPane>
+                                    </VBox>
                               </content>
                             </TitledPane>
                             <TitledPane animated="false" text="UDP Flood Info">
                               <content>
-                                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                    <VBox prefHeight="180.0" prefWidth="186.0">
                                        <children>
-                                          <VBox prefHeight="180.0" prefWidth="186.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                          <AnchorPane>
                                              <children>
-                                                <Button id="udp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="179.0" text="UDP Flood Table" />
-                                                <Button id="udp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="UDP Flood Graph" />
-                                                <Button id="udp_flood_map_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#showMap" prefWidth="175.0" text="UDP Flood Map" />
+                                                <Button id="udp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="179.0" text="UDP Flood Table" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                                              </children>
-                                          </VBox>
-                                       </children></AnchorPane>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="udp_flood_info_button" mnemonicParsing="false" prefHeight="25.0" prefWidth="175.0" text="UDP Flood Graph" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="udp_flood_map_button" mnemonicParsing="false" onAction="#showMap" prefHeight="25.0" prefWidth="175.0" text="UDP Flood Map" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                       </children>
+                                    </VBox>
                               </content>
                             </TitledPane>
                               <TitledPane animated="false" layoutX="10.0" layoutY="60.0" text="ICMP Flood Info">
                                  <content>
-                                    <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                    <VBox prefHeight="200.0" prefWidth="186.0">
                                        <children>
-                                          <VBox prefHeight="180.0" prefWidth="186.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                          <AnchorPane>
                                              <children>
-                                                <Button id="icmp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="179.0" text="ICMP Flood Table" />
-                                                <Button id="icmp_flood_info_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" prefWidth="175.0" text="ICMP Flood Graph" />
-                                                <Button id="icmp_flood_map_button" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#showMap" prefWidth="175.0" text="ICMP Flood Map" />
+                                                <Button id="icmp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="179.0" text="ICMP Flood Table" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                                              </children>
-                                          </VBox>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="icmp_flood_info_button" mnemonicParsing="false" prefHeight="25.0" prefWidth="175.0" text="ICMP Flood Graph" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="icmp_flood_map_button" mnemonicParsing="false" onAction="#showMap" prefHeight="25.0" prefWidth="175.0" text="ICMP Flood Map" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
                                        </children>
-                                    </AnchorPane>
+                                    </VBox>
                                  </content>
                               </TitledPane>
                           </panes>
