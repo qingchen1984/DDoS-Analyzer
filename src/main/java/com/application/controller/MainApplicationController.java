@@ -3,17 +3,21 @@ package com.application.controller;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ResourceBundle;
 
 import org.apache.commons.io.FileUtils;
 
 import com.analyzer.PcapAnalyzer;
+import com.database.RateContent;
 import com.database.RowContent;
 
 import javafx.application.Platform;
@@ -26,6 +30,12 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.chart.Axis;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Data;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -51,6 +61,12 @@ import com.lynden.gmapsfx.javascript.object.MapShape;
 import com.lynden.gmapsfx.javascript.object.MapTypeIdEnum;
 import com.lynden.gmapsfx.javascript.object.Marker;
 import com.lynden.gmapsfx.javascript.object.MarkerOptions;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.LineString;
+import com.vividsolutions.jts.geom.impl.CoordinateArraySequence;
+import com.vividsolutions.jts.simplify.DouglasPeuckerSimplifier;
 
 public class MainApplicationController implements Initializable, MapComponentInitializedListener{
 	
@@ -78,10 +94,14 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	@FXML private TableColumn<RowContent, String> countryColumnIcmp;
 	@FXML private TableColumn<RowContent, String> cityColumnIcmp;
 	@FXML GoogleMapView mapView;
+	@FXML private LineChart<String, Number> lineChartView;
 	private GoogleMap map;
 	private ObservableList<RowContent> tcpFloodData;
 	private ObservableList<RowContent> udpFloodData;
 	private ObservableList<RowContent> icmpFloodData;
+	private ObservableList<XYChart.Data<String, Number>> tcpAttackRate;
+	private ObservableList<XYChart.Data<String, Number>> udpAttackRate;
+	private ObservableList<XYChart.Data<String, Number>> icmpAttackRate;
 	private HashMap<String, TableColumn<RowContent, String>> tcpColumnMap;
 	private HashMap<String, TableColumn<RowContent, String>> udpColumnMap;
 	private HashMap<String, TableColumn<RowContent, String>> icmpColumnMap;
@@ -151,6 +171,15 @@ public class MainApplicationController implements Initializable, MapComponentIni
 				ArrayList<RowContent> icmpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
 				icmpFloodData = FXCollections.observableArrayList(icmpVictims);
 				
+				ArrayList<RateContent> tcpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
+				tcpAttackRate = simplifyPlotPoints(tcpRate);
+				
+				ArrayList<RateContent> udppRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
+				udpAttackRate = convertPlotPoints(udppRate);
+						
+				ArrayList<RateContent> icmpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
+				icmpAttackRate = convertPlotPoints(icmpRate);
+						
 				loadOverviewData(pcapAnalyzer);
 				showOverviewData();
 			}
@@ -158,6 +187,50 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			e.printStackTrace();
 		}
 		
+	}
+
+	/**
+	 * Convert to a JavaFX-PlotChart-friendly array.
+	 * 
+	 * @param udppRate Original plot points to be converted.
+	 * @return JavaFX-PlotChart-friendly array.
+	 */
+	private ObservableList<XYChart.Data<String, Number>> convertPlotPoints(ArrayList<RateContent> udppRate) {
+		ObservableList<XYChart.Data<String, Number>> ol = FXCollections.observableArrayList();
+		Iterator<RateContent> iUdp = udppRate.iterator();
+		while (iUdp.hasNext()) {
+			RateContent rc1 = iUdp.next();
+			ol.add(new XYChart.Data<String, Number>((new Timestamp(rc1.getTime())).toString(), rc1.getRate()));
+		}
+		return ol;
+	}
+
+	/**
+	 * Simplifies plot points using the Ramer–Douglas–Peucker algorithm.
+	 * 
+	 * @param tcpRate Original points to be simplified.
+	 * @return Simplified JavaFX-PlotChart-friendly array.
+	 */
+	private ObservableList<Data<String, Number>>  simplifyPlotPoints(ArrayList<RateContent> plotPoints) {
+		double distanceTolerance = plotPoints.size() / 200;
+		System.out.println("Original size of plot points: " + plotPoints.size());
+		GeometryFactory gf= new GeometryFactory();
+		// Convert plot points to an array of Coordinates
+		Coordinate[] coordinates = new Coordinate[plotPoints.size()];
+		for (int i = 0; i < coordinates.length; i++) {
+			RateContent rc = plotPoints.get(i);
+			coordinates[i] = new Coordinate(rc.getTime(), rc.getRate());
+		}
+		Geometry geom = new LineString(new CoordinateArraySequence(coordinates), gf);
+		// Simplify
+		Geometry simplified = DouglasPeuckerSimplifier.simplify(geom, distanceTolerance);
+		// Convert to a JavaFX-PlotChart-friendly array 
+		List<Data<String, Number>> update = new ArrayList<Data<String, Number>>();
+		for (Coordinate each : simplified.getCoordinates()) {
+		    update.add(new Data<>((new Timestamp((long) each.x)).toString(), each.y));
+		}
+		System.out.println("Simplified size of plot points: " + update.size());
+		return FXCollections.observableArrayList(update);
 	}
 
 	private void loadOverviewData(PcapAnalyzer pcapAnalyzer) {
@@ -260,14 +333,29 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		if (id.contains("tcp")) {
 			setUpMap(tcpFloodData);
 		} else if (id.contains("udp")) {
-			setUpMap(udpFloodData);
-
+			setUpMap(udpFloodData);
 		} else if (id.contains("icmp")) {
 			setUpMap(icmpFloodData);
 		} else {
 			System.out.println("Button id not recognized: " + id);
 		}
 		showResultView("#map_pane");
+	}
+	
+	public void showDosRate(ActionEvent event) {
+		Button srcButton = (Button) event.getSource();
+		String id = srcButton.getId();
+		ObservableList<XYChart.Series<String, Number>> series = FXCollections.observableArrayList();
+		series.add(new XYChart.Series<>("TCP rate", tcpAttackRate));
+		//series.add(new XYChart.Series<>("UDP rate", udpAttackRate));
+		//series.add(new XYChart.Series<>("ICMP rate", icmpAttackRate));
+		//lineChartView = new LineChart<Timestamp, Number>(xAxis, yAxis, series);
+		lineChartView.setCreateSymbols(false);
+		lineChartView.setAnimated(false);
+		lineChartView.setData(series);
+		//lineChartView.autosize();
+		//lineChartView.createSymbolsProperty();
+		showResultView("#line_chart_pane");
 	}
 
 	@Override

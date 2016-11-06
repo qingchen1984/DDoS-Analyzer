@@ -199,13 +199,10 @@ public class PcapReader implements Runnable {
 					if (!packet.contains(FragmentedPacket.class)) {
 						
 						if (packet.contains(TcpPacket.class)) {
-							//if (protocol == TCP) tcpPackets++;
 							tcpPackets++;
 							TcpHeader tcpHeader = packet.get(TcpPacket.class).getHeader();
 							ack = tcpHeader.getAck();
 							syn = tcpHeader.getSyn();
-							//srcPort = tcpHeader.getSrcPort().valueAsInt();
-							//destPort = tcpHeader.getDstPort().valueAsInt();
 							
 							// TCP flooding when ACK and SYN are true 
 							if (ack == true && syn == true) { 
@@ -219,11 +216,6 @@ public class PcapReader implements Runnable {
 							}
 						} else if (packet.contains(UdpPacket.class)) {
 							udpPackets++;
-							//UdpHeader udpHeader = packet.get(UdpPacket.class).getHeader();
-							//if (protocol == UDP) udpPackets++;
-							
-							//srcPort = udpHeader.getSrcPort().valueAsInt();
-							//destPort = udpHeader.getDstPort().valueAsInt();
 						} else if (packet.contains(IcmpV4CommonPacket.class)) {
 							icmpPackets++;
 							IcmpV4CommonHeader icmpHeader = packet.get(IcmpV4CommonPacket.class).getHeader();

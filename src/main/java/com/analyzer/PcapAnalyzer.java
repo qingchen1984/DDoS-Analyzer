@@ -12,9 +12,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.database.DbStore;
+import com.database.RateContent;
 import com.database.RowContent;
-import com.maxmind.geoip2.DatabaseReader;
-import com.maxmind.geoip2.model.CityResponse;
 
 public class PcapAnalyzer {
 	
@@ -40,6 +39,7 @@ public class PcapAnalyzer {
 	public static final String FILE_SIZE = DbStore.FILE_SIZE;
 	public static final String FILE_PROCESS_TIME = DbStore.FILE_PROCESS_TIME;
 	private HashMap<String,Object> statistics = new HashMap<String,Object>();
+	private HashMap<String,ArrayList<RateContent>> rateStatistics = new HashMap<String,ArrayList<RateContent>>();
 	private HashMap<String,ArrayList<RowContent>> dosStatistics = new HashMap<String,ArrayList<RowContent>>();
 	private static int packetSize = 5000000;
 	private Logger logger;
@@ -207,14 +207,37 @@ public class PcapAnalyzer {
 		dosStatistics.put(UDP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.UDP_FLOODING_TABLE_NAME));
 		dosStatistics.put(ICMP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME));
 		
+		rateStatistics.put(TCP_FLOODING_TABLE_NAME, dbStore.getAttackRate(DbStore.TCP_FLOODING_TABLE_NAME));
+		rateStatistics.put(UDP_FLOODING_TABLE_NAME, dbStore.getAttackRate(DbStore.UDP_FLOODING_TABLE_NAME));
+		rateStatistics.put(ICMP_FLOODING_TABLE_NAME, dbStore.getAttackRate(DbStore.ICMP_FLOODING_TABLE_NAME));
+		
 	}
 	
+	/**
+	 * 
+	 * @param key
+	 * @return
+	 */
 	public Object getStatisticss(String key) {
 		return statistics.get(key);
 	}
 	
+	/**
+	 * 
+	 * @param key
+	 * @return
+	 */
 	public ArrayList<RowContent> getDosVictims(String key) {
 		return dosStatistics.get(key);
+	}
+	
+	/**
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public ArrayList<RateContent> getAttackRate(String key) {
+		return rateStatistics.get(key);
 	}
 
 	/**

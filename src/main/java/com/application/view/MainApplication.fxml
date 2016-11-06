@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.lynden.gmapsfx.GoogleMapView?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.control.Accordion?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
@@ -21,7 +25,6 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 <?import com.lynden.gmapsfx.*?>
-
 
 <BorderPane fx:id="mainBorderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="642.0" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.application.controller.MainApplicationController">
    <top>
@@ -74,6 +77,7 @@
                                           <VBox prefHeight="65.0" prefWidth="206.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                              <children>
                                               <Button id="overview_button" alignment="CENTER" mnemonicParsing="false" onAction="#showOverviewData" prefHeight="25.0" prefWidth="188.0" styleClass="view" text="Summary" />
+                                                <Button id="dos_rate_button" alignment="CENTER" layoutX="10.0" layoutY="10.0" mnemonicParsing="false" onAction="#showDosRate" prefHeight="25.0" prefWidth="188.0" styleClass="view" text="DOS rate" />
                                              </children>
                                           </VBox>
                                        </children>
@@ -131,7 +135,7 @@
                </children></AnchorPane>
           <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
                <children>
-                  <StackPane id="result_stack" fx:id="resultStack" layoutX="14.0" layoutY="60.0" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                  <StackPane id="result_stack" fx:id="resultStack" layoutX="14.0" layoutY="60.0" prefHeight="355.0" prefWidth="446.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                      <children>
                         <AnchorPane id="overview_pane">
                            <children>
@@ -253,6 +257,18 @@
                         <AnchorPane id="map_pane" prefHeight="200.0" prefWidth="200.0">
                            <children>
                               <GoogleMapView fx:id="mapView" prefHeight="355.0" prefWidth="446.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                           </children>
+                        </AnchorPane>
+                        <AnchorPane id="line_chart_pane" prefHeight="200.0" prefWidth="200.0">
+                           <children>
+                              <LineChart fx:id="lineChartView" prefHeight="400.0" prefWidth="500.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <xAxis>
+                                  <CategoryAxis side="BOTTOM" />
+                                </xAxis>
+                                <yAxis>
+                                  <NumberAxis side="LEFT" />
+                                </yAxis>
+                              </LineChart>
                            </children>
                         </AnchorPane>
                      </children>

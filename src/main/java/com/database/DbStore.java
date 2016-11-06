@@ -10,9 +10,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 
 import org.apache.logging.log4j.Logger;
@@ -165,6 +165,11 @@ public class DbStore {
 		return result;
 	}
 	
+	/**
+	 * Closes a PreparedStatement connection.
+	 * 
+	 * @param pst PreparedStatement to close.
+	 */
 	private void closePstConnection(PreparedStatement pst) {
 		try {
 			if (pst != null) {
@@ -175,6 +180,9 @@ public class DbStore {
 			}
 	}
 	
+	/**
+	 * Closes all connections used for adding DOS data
+	 */
 	public void closeAllConnections() {
 		 try {
              if (pstTcp != null) {
@@ -194,6 +202,9 @@ public class DbStore {
          }
 	}
 	
+	/**
+	 * Opens all connections used for adding DOS data
+	 */
 	private void openConnection() {
 		try {
 			if (con == null || con.isClosed()) {
@@ -214,6 +225,13 @@ public class DbStore {
 		}
 	}
 	
+	/**
+	 * Clears all DBs used for adding DOS data
+	 * 
+	 * @param dbName
+	 * @param connection
+	 * @throws SQLException
+	 */
 	private void clearDbTable(String dbName, Connection connection) throws SQLException {
 		Statement st = null;
 		st = connection.createStatement();
@@ -306,6 +324,14 @@ public class DbStore {
 	    stmt.close();
 	}
 
+	/**
+	 * Fills a summary table containing file/DB statistics after parsing.
+	 * 
+	 * @param fileName File name.
+	 * @param fileSize File size.
+	 * @param processTime Process time.
+	 * @param packets Packet statistics.
+	 */
 	public void setSummaryTable(String fileName, long fileSize, 
 			long processTime, HashMap<String, Long> packets) {
 		Connection connection = null;
@@ -415,14 +441,73 @@ public class DbStore {
     		+ "VALUES(?,?)";
 	}
 	
-	public ArrayList<RowContent> getDosVictims(String tableName) {
-		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
-		String query = "SELECT "
+	/**
+	 * Query to be used to get a list of DOS victims and the amount of attack packets.
+	 * 
+	 * @param tableName Table name where to get the list from
+	 * @param rate Lower bound rate of attack (packets per second) for each source address.
+	 * @return Query
+	 */
+	private String getDosVictimsQuery(String tableName, int rate) {
+		return "SELECT "
 				+ "SrcAddress, "
 				+ "COUNT(*) AS packetCount, "
-				+ "(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS totalSeconds "
+				+ "(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS totalSeconds, "
+				+ "COUNT(*)/(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS rate "
 				+ "FROM " + tableName + " "
-				+ "GROUP BY SrcAddress ORDER BY packetCount DESC";
+				+ "GROUP BY SrcAddress "
+				+ "HAVING rate > " + rate;
+	}
+	
+	/**
+	 * Query to be used to get a list of attack rate (packets per second).
+	 * 
+	 * @param tableName Table name where to get the list from.
+	 * @param rate Lower bound rate of attack (packets per second) for each source address.
+	 * @return Query
+	 */
+	private String getAttackRateQuery(String tableName, int rate) {
+		return "SELECT "
+				+ "TIMESTAMP, "
+				+ "COUNT(*) AS packetPerSecond "
+				+ "FROM tcpflood "
+				+ "WHERE EXISTS ("
+				+ getDosVictimsQuery(tableName, rate) + ") "
+				+ "GROUP BY TIMESTAMP";
+	}
+	
+	/**
+	 * Gets a list of attack rate (packets per second).
+	 * 
+	 * @param tableName Table name where to get the list from.
+	 * @return List of attack rate
+	 */
+	public ArrayList<RateContent> getAttackRate(String tableName) {
+		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
+		String query = getAttackRateQuery(tableName, 20);
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(url, user, password);
+			Statement  statement = connection.createStatement();
+			ResultSet rs = statement.executeQuery(query);
+			while (rs.next()) {
+				rateArr.add(new RateContent(rs.getTimestamp("Timestamp").getTime(), rs.getInt("packetPerSecond")));
+			}
+		} catch (SQLException e) {
+			logger.error("Database failed", e);
+		}
+		return rateArr;
+	}
+	
+	/**
+	 * Gets a list of DOS victims and the amount of attack packets.
+	 * 
+	 * @param tableName Table name where to get the list from.
+	 * @return List of DOS victims and the amount of attack packets.
+	 */
+	public ArrayList<RowContent> getDosVictims(String tableName) {
+		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
+		String query = getDosVictimsQuery(tableName, 20);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, user, password);
@@ -444,8 +529,9 @@ public class DbStore {
 			while (rs.next()) {
 				InetAddress ip = null;
 				String address = "Unknown";
+				byte[] srcByteArr = rs.getBytes("SrcAddress");
 				try {
-					ip = InetAddress.getByAddress(rs.getBytes("SrcAddress"));
+					ip = InetAddress.getByAddress(srcByteArr);
 					address = ip.getHostAddress();
 				} catch (UnknownHostException e) {
 					logger.error("Error encountered parsing byte[] address ", e.getMessage());
@@ -468,6 +554,7 @@ public class DbStore {
 					logger.error("Error encountered parsing country/city/location ", e.getMessage());
 				}
 				resultArr.add(new RowContent(
+						srcByteArr,
 						address,
 						rs.getLong("packetCount"),
 						rs.getLong("totalSeconds"),

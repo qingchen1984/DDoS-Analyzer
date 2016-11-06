@@ -1,8 +1,5 @@
 package com.database;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
 /**
  * Class containing information regarding DOS attack
  * 
@@ -17,6 +14,7 @@ public class RowContent {
 	public static final String COUNTRY_NAME = "country";
 	public static final String CITY_NAME = "city";
 	private String srcAddress;
+	private byte[] srcAddressArr;
 	private long numOfPackets;
 	private long timeInSecs;
 	private long attackRate;
@@ -29,13 +27,15 @@ public class RowContent {
 	 * Constructor
 	 * 
 	 * @param srcAddress Source address of attack
+	 * @param srcByteArr Source address 
 	 * @param numOfPackets Number of attack packets associated with srcAddress
 	 * @param timeInSecs Time of attack associated with srcAddress
 	 * @param country Country of srcAddress
 	 * @param city City of srcAddress
 	 */
-	RowContent(String srcAddress, long numOfPackets, long timeInSecs, 
+	RowContent(byte[] srcByteArr, String srcAddress, long numOfPackets, long timeInSecs, 
 			String country, String city, double latitude, double longitude) {
+		this.srcAddressArr = srcByteArr;
 		this.srcAddress = srcAddress;
 		this.numOfPackets = numOfPackets;
 		this.timeInSecs = timeInSecs;
@@ -192,6 +192,24 @@ public class RowContent {
 	 */
 	public void setLongitude(double longitude) {
 		this.longitude = longitude;
+	}
+
+	/**
+	 * Gets the value of srcAddressArr
+	 *
+	 * @return the srcAddressArr
+	 */
+	public byte[] getSrcAddressArr() {
+		return srcAddressArr;
+	}
+
+	/**
+	 * Sets the value of srcAddressArr
+	 *
+	 * @param srcAddressArr the srcAddressArr to set
+	 */
+	public void setSrcAddressArr(byte[] srcAddressArr) {
+		this.srcAddressArr = srcAddressArr;
 	}
 	
 	
