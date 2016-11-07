@@ -241,47 +241,19 @@
                               </GridPane>
                            </children>
                         </AnchorPane>
-                        <AnchorPane id="tcp_flood_table_pane">
+                        <AnchorPane id="flood_table_pane">
                            <children>
-                              <TableView id="tcp_flood_table" fx:id="tcpFloodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                              <TableView id="tcp_flood_table" fx:id="floodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                 <columns>
-                                  <TableColumn fx:id="ipColumnTcp" prefWidth="75.0" text="IP" />
-                                  <TableColumn fx:id="numOfPacketsColumnTcp" prefWidth="75.0" text="# of Packets" />
-                                    <TableColumn fx:id="attackTimeColumnTcp" prefWidth="75.0" text="Attack time" />
-                                    <TableColumn fx:id="attackRateColumnTcp" prefWidth="75.0" text="Attack Rate" />
-                                    <TableColumn fx:id="countryColumnTcp" prefWidth="75.0" text="Country" />
-                                    <TableColumn fx:id="cityColumnTcp" prefWidth="75.0" text="City" />
+                                  <TableColumn fx:id="ipColumn" prefWidth="75.0" text="IP" />
+                                  <TableColumn fx:id="numOfPacketsColumn" prefWidth="75.0" text="# of Packets" />
+                                    <TableColumn fx:id="attackTimeColumn" prefWidth="75.0" text="Attack time" />
+                                    <TableColumn fx:id="attackRateColumn" prefWidth="75.0" text="Attack Rate" />
+                                    <TableColumn fx:id="countryColumn" prefWidth="75.0" text="Country" />
+                                    <TableColumn fx:id="cityColumn" prefWidth="75.0" text="City" />
                                 </columns>
                               </TableView>
                            </children></AnchorPane>
-                        <AnchorPane id="udp_flood_table_pane" layoutX="10.0" layoutY="10.0">
-                           <children>
-                              <TableView id="tcp_flood_table" fx:id="udpFloodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                 <columns>
-                                    <TableColumn fx:id="ipColumnUdp" prefWidth="75.0" text="IP" />
-                                    <TableColumn fx:id="numOfPacketsColumnUdp" prefWidth="75.0" text="# of Packets" />
-                                    <TableColumn fx:id="attackTimeColumnUdp" prefWidth="75.0" text="Attack time" />
-                                    <TableColumn fx:id="attackRateColumnUdp" prefWidth="75.0" text="Attack Rate" />
-                                    <TableColumn fx:id="countryColumnUdp" prefWidth="75.0" text="Country" />
-                                    <TableColumn fx:id="cityColumnUdp" prefWidth="75.0" text="City" />
-                                 </columns>
-                              </TableView>
-                           </children>
-                        </AnchorPane>
-                        <AnchorPane id="icmp_flood_table_pane" layoutX="10.0" layoutY="10.0">
-                           <children>
-                              <TableView id="tcp_flood_table" fx:id="icmpFloodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                 <columns>
-                                    <TableColumn fx:id="ipColumnIcmp" prefWidth="75.0" text="IP" />
-                                    <TableColumn fx:id="numOfPacketsColumnIcmp" prefWidth="75.0" text="# of Packets" />
-                                    <TableColumn fx:id="attackTimeColumnIcmp" prefWidth="75.0" text="Attack time" />
-                                    <TableColumn fx:id="attackRateColumnIcmp" prefWidth="75.0" text="Attack Rate" />
-                                    <TableColumn fx:id="countryColumnIcmp" prefWidth="75.0" text="Country" />
-                                    <TableColumn fx:id="cityColumnIcmp" prefWidth="75.0" text="City" />
-                                 </columns>
-                              </TableView>
-                           </children>
-                        </AnchorPane>
                         <AnchorPane id="map_pane" prefHeight="200.0" prefWidth="200.0">
                            <children>
                               <GoogleMapView fx:id="mapView" prefHeight="355.0" prefWidth="446.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />

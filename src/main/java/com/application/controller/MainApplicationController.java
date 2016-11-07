@@ -72,27 +72,13 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	
 	@FXML private BorderPane mainBorderPane;
 	@FXML private StackPane resultStack;
-	@FXML private TableView<RowContent> tcpFloodTable;
-	@FXML private TableView<RowContent> udpFloodTable;
-	@FXML private TableView<RowContent> icmpFloodTable;
-	@FXML private TableColumn<RowContent, String> ipColumnTcp;
-	@FXML private TableColumn<RowContent, String> numOfPacketsColumnTcp;
-	@FXML private TableColumn<RowContent, String> attackTimeColumnTcp;
-	@FXML private TableColumn<RowContent, String> attackRateColumnTcp;
-	@FXML private TableColumn<RowContent, String> countryColumnTcp;
-	@FXML private TableColumn<RowContent, String> cityColumnTcp;
-	@FXML private TableColumn<RowContent, String> ipColumnUdp;
-	@FXML private TableColumn<RowContent, String> numOfPacketsColumnUdp;
-	@FXML private TableColumn<RowContent, String> attackTimeColumnUdp;
-	@FXML private TableColumn<RowContent, String> attackRateColumnUdp;
-	@FXML private TableColumn<RowContent, String> countryColumnUdp;
-	@FXML private TableColumn<RowContent, String> cityColumnUdp;
-	@FXML private TableColumn<RowContent, String> ipColumnIcmp;
-	@FXML private TableColumn<RowContent, String> numOfPacketsColumnIcmp;
-	@FXML private TableColumn<RowContent, String> attackTimeColumnIcmp;
-	@FXML private TableColumn<RowContent, String> attackRateColumnIcmp;
-	@FXML private TableColumn<RowContent, String> countryColumnIcmp;
-	@FXML private TableColumn<RowContent, String> cityColumnIcmp;
+	@FXML private TableView<RowContent> floodTable;
+	@FXML private TableColumn<RowContent, String> ipColumn;
+	@FXML private TableColumn<RowContent, String> numOfPacketsColumn;
+	@FXML private TableColumn<RowContent, String> attackTimeColumn;
+	@FXML private TableColumn<RowContent, String> attackRateColumn;
+	@FXML private TableColumn<RowContent, String> countryColumn;
+	@FXML private TableColumn<RowContent, String> cityColumn;
 	@FXML GoogleMapView mapView;
 	@FXML private LineChart<String, Number> lineChartView;
 	private GoogleMap map;
@@ -102,13 +88,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	private ObservableList<XYChart.Data<String, Number>> tcpAttackRate;
 	private ObservableList<XYChart.Data<String, Number>> udpAttackRate;
 	private ObservableList<XYChart.Data<String, Number>> icmpAttackRate;
-	private HashMap<String, TableColumn<RowContent, String>> tcpColumnMap;
-	private HashMap<String, TableColumn<RowContent, String>> udpColumnMap;
-	private HashMap<String, TableColumn<RowContent, String>> icmpColumnMap;
-	private boolean isTcpMapSelected = false;
-	private boolean isUdpMapSelected = false;
-	private boolean isIcmpMapSelected = false;
-	private boolean isMapInitialized = false;
+	private HashMap<String, TableColumn<RowContent, String>> columnMap;
 	private MapOptions mapOptions;
 	
 	
@@ -160,8 +140,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			if(dbName != null) {
 				PcapAnalyzer pcapAnalyzer = new PcapAnalyzer();
 				pcapAnalyzer.loadProcessedData(dbName);
-				Iterator<RowContent> iterator;
-				RowContent rc;
 				ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
 				tcpFloodData = FXCollections.observableArrayList(tcpVictims);
 				
@@ -266,17 +244,15 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @param event
 	 */
 	public void showFloodTable(ActionEvent event) {
+		String paneView = "#flood_table_pane";
 		Button srcButton = (Button) event.getSource();
 		String id = srcButton.getId();
 		if (id.contains("tcp")) {
-			String paneView = "#tcp_flood_table_pane";
-			setUpFloodTable(paneView, tcpColumnMap, tcpFloodData, tcpFloodTable);
+			setUpFloodTable(paneView, columnMap, tcpFloodData, floodTable);
 		} else if (id.contains("udp")) {
-			String paneView = "#udp_flood_table_pane";
-			setUpFloodTable(paneView, udpColumnMap, udpFloodData, udpFloodTable);
+			setUpFloodTable(paneView, columnMap, udpFloodData, floodTable);
 		} else if (id.contains("icmp")) {
-			String paneView = "#icmp_flood_table_pane";
-			setUpFloodTable(paneView, icmpColumnMap, icmpFloodData, icmpFloodTable);
+			setUpFloodTable(paneView, columnMap, icmpFloodData, floodTable);
 		} else {
 			System.out.println("Button id not recognized: " + id);
 		}
@@ -347,43 +323,26 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		String id = srcButton.getId();
 		ObservableList<XYChart.Series<String, Number>> series = FXCollections.observableArrayList();
 		series.add(new XYChart.Series<>("TCP rate", tcpAttackRate));
-		//series.add(new XYChart.Series<>("UDP rate", udpAttackRate));
-		//series.add(new XYChart.Series<>("ICMP rate", icmpAttackRate));
+		series.add(new XYChart.Series<>("UDP rate", udpAttackRate));
+		series.add(new XYChart.Series<>("ICMP rate", icmpAttackRate));
 		//lineChartView = new LineChart<Timestamp, Number>(xAxis, yAxis, series);
 		lineChartView.setCreateSymbols(false);
 		lineChartView.setAnimated(false);
 		lineChartView.setData(series);
 		//lineChartView.autosize();
-		//lineChartView.createSymbolsProperty();
 		showResultView("#line_chart_pane");
 	}
 
 	@Override
 	public void initialize(URL arg0, ResourceBundle arg1) {
 		hideAllResultViews();
-		tcpColumnMap = new HashMap<String, TableColumn<RowContent, String>>();
-		tcpColumnMap.put(RowContent.SOURCE_ADDRESS, ipColumnTcp);
-		tcpColumnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumnTcp);
-		tcpColumnMap.put(RowContent.ATTACK_TIME_IN_SECONDS, attackTimeColumnTcp);
-		tcpColumnMap.put(RowContent.ATTACK_RATE, attackRateColumnTcp);
-		tcpColumnMap.put(RowContent.COUNTRY_NAME, countryColumnTcp);
-		tcpColumnMap.put(RowContent.CITY_NAME, cityColumnTcp);
-		
-		udpColumnMap = new HashMap<String, TableColumn<RowContent, String>>();
-		udpColumnMap.put(RowContent.SOURCE_ADDRESS, ipColumnUdp);
-		udpColumnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumnUdp);
-		udpColumnMap.put(RowContent.ATTACK_TIME_IN_SECONDS, attackTimeColumnUdp);
-		udpColumnMap.put(RowContent.ATTACK_RATE, attackRateColumnUdp);
-		udpColumnMap.put(RowContent.COUNTRY_NAME, countryColumnUdp);
-		udpColumnMap.put(RowContent.CITY_NAME, cityColumnUdp);
-		
-		icmpColumnMap = new HashMap<String, TableColumn<RowContent, String>>();
-		icmpColumnMap.put(RowContent.SOURCE_ADDRESS, ipColumnIcmp);
-		icmpColumnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumnIcmp);
-		icmpColumnMap.put(RowContent.ATTACK_TIME_IN_SECONDS, attackTimeColumnIcmp);
-		icmpColumnMap.put(RowContent.ATTACK_RATE, attackRateColumnIcmp);
-		icmpColumnMap.put(RowContent.COUNTRY_NAME, countryColumnIcmp);
-		icmpColumnMap.put(RowContent.CITY_NAME, cityColumnIcmp);
+		columnMap = new HashMap<String, TableColumn<RowContent, String>>();
+		columnMap.put(RowContent.SOURCE_ADDRESS, ipColumn);
+		columnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumn);
+		columnMap.put(RowContent.ATTACK_TIME_IN_SECONDS, attackTimeColumn);
+		columnMap.put(RowContent.ATTACK_RATE, attackRateColumn);
+		columnMap.put(RowContent.COUNTRY_NAME, countryColumn);
+		columnMap.put(RowContent.CITY_NAME, cityColumn);
 		
 		mapView.addMapInializedListener(this);
 	    
