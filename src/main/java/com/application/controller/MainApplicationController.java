@@ -154,10 +154,10 @@ public class MainApplicationController implements Initializable, MapComponentIni
 				tcpAttackRate = simplifyPlotPoints(tcpRate);
 				
 				ArrayList<RateContent> udppRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
-				udpAttackRate = convertPlotPoints(udppRate);
+				udpAttackRate = simplifyPlotPoints(udppRate);
 						
 				ArrayList<RateContent> icmpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
-				icmpAttackRate = convertPlotPoints(icmpRate);
+				icmpAttackRate = simplifyPlotPoints(icmpRate);
 						
 				loadOverviewData(pcapAnalyzer);
 				showOverviewData();
@@ -191,18 +191,37 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @return Simplified JavaFX-PlotChart-friendly array.
 	 */
 	private ObservableList<Data<String, Number>>  simplifyPlotPoints(ArrayList<RateContent> plotPoints) {
-		double distanceTolerance = plotPoints.size() / 200;
-		System.out.println("Original size of plot points: " + plotPoints.size());
+		int size = plotPoints.size();
+		if (size < 500) return convertPlotPoints(plotPoints);
+		
+		double distanceTolerance = size / 200;
+		System.out.println("Distance Tolerance to use: " + distanceTolerance);
+		System.out.println("Original size of plot points: " +size);
 		GeometryFactory gf= new GeometryFactory();
 		// Convert plot points to an array of Coordinates
-		Coordinate[] coordinates = new Coordinate[plotPoints.size()];
+		Coordinate[] coordinates = new Coordinate[size];
 		for (int i = 0; i < coordinates.length; i++) {
 			RateContent rc = plotPoints.get(i);
 			coordinates[i] = new Coordinate(rc.getTime(), rc.getRate());
 		}
 		Geometry geom = new LineString(new CoordinateArraySequence(coordinates), gf);
 		// Simplify
+		int count = 0;
 		Geometry simplified = DouglasPeuckerSimplifier.simplify(geom, distanceTolerance);
+		size = (int) simplified.getNumPoints();
+		// Loop over the simplification trying to get a specific range varying the distance tolerance. 
+		while ((size < 500 || size > 1500) && count < 5) {
+			if (size < 500) {
+				distanceTolerance = distanceTolerance / 2;
+			} else if (size > 1500) {
+				distanceTolerance = distanceTolerance * 2;
+			}
+			simplified = DouglasPeuckerSimplifier.simplify(geom, distanceTolerance);
+			size = (int) simplified.getNumPoints();
+			System.out.println("Iterim distance tolerance: " + distanceTolerance);
+			System.out.println("Iterim size: " + size);
+			count ++;
+		}
 		// Convert to a JavaFX-PlotChart-friendly array 
 		List<Data<String, Number>> update = new ArrayList<Data<String, Number>>();
 		for (Coordinate each : simplified.getCoordinates()) {
@@ -322,8 +341,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	}
 	
 	public void showDosRate(ActionEvent event) {
-		Button srcButton = (Button) event.getSource();
-		String id = srcButton.getId();
 		setLineChartData(null, null, null);
 		//lineChartView.autosize();
 		showResultView("#line_chart_pane");
@@ -342,7 +359,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		} else {
 			// Uses data for a specific address
 			ArrayList<RateContent> attackList = pcapAnalyzer.getAttackRateForAddress(tableName, address);
-			series.add(new XYChart.Series<>(addressString + " rate", convertPlotPoints(attackList)));
+			series.add(new XYChart.Series<>(addressString + " rate", simplifyPlotPoints(attackList)));
 		}
 		lineChartView.setCreateSymbols(false);
 		lineChartView.setAnimated(false);
