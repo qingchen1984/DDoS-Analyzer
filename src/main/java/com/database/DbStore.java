@@ -77,6 +77,15 @@ public class DbStore {
 	}
 	
 	/**
+	 * Sets am existing database name to be used if none was specified during object creation.
+	 * 
+	 * @param dbName
+	 */
+	public void setDb(String dbName) {
+		url = "jdbc:mysql://localhost:3306/" + dbName + "?autoReconnect=true&useSSL=false";
+	}
+	
+	/**
 	 * Adds parameters to a batch to be later inserted to the DB.
 	 * 
 	 * @param packetNumber
@@ -470,9 +479,18 @@ public class DbStore {
 		return "SELECT "
 				+ "TIMESTAMP, "
 				+ "COUNT(*) AS packetPerSecond "
-				+ "FROM tcpflood "
+				+ "FROM " + tableName + " "
 				+ "WHERE EXISTS ("
 				+ getDosVictimsQuery(tableName, rate) + ") "
+				+ "GROUP BY TIMESTAMP";
+	}
+	
+	private String getAttackRateForAddressQuery(String tableName) {
+		return "SELECT "
+				+ "TIMESTAMP, "
+				+ "COUNT(*) AS packetPerSecond "
+				+ "FROM " + tableName + " "
+				+ "WHERE SrcAddress = ? "
 				+ "GROUP BY TIMESTAMP";
 	}
 	
@@ -490,6 +508,24 @@ public class DbStore {
 			connection = DriverManager.getConnection(url, user, password);
 			Statement  statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(query);
+			while (rs.next()) {
+				rateArr.add(new RateContent(rs.getTimestamp("Timestamp").getTime(), rs.getInt("packetPerSecond")));
+			}
+		} catch (SQLException e) {
+			logger.error("Database failed", e);
+		}
+		return rateArr;
+	}
+	
+	public ArrayList<RateContent> getAttackRate(String tableName, byte[] address) {
+		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
+		String query = getAttackRateForAddressQuery(tableName);
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(url, user, password);
+			PreparedStatement  ps = connection.prepareStatement(getAttackRateForAddressQuery(tableName));
+			ps.setBytes(1, address);
+			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
 				rateArr.add(new RateContent(rs.getTimestamp("Timestamp").getTime(), rs.getInt("packetPerSecond")));
 			}

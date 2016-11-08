@@ -79,7 +79,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	@FXML private TableColumn<RowContent, String> attackRateColumn;
 	@FXML private TableColumn<RowContent, String> countryColumn;
 	@FXML private TableColumn<RowContent, String> cityColumn;
-	@FXML GoogleMapView mapView;
+	@FXML private GoogleMapView mapView;
 	@FXML private LineChart<String, Number> lineChartView;
 	private GoogleMap map;
 	private ObservableList<RowContent> tcpFloodData;
@@ -90,6 +90,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	private ObservableList<XYChart.Data<String, Number>> icmpAttackRate;
 	private HashMap<String, TableColumn<RowContent, String>> columnMap;
 	private MapOptions mapOptions;
+	private PcapAnalyzer pcapAnalyzer;
 	
 	
 
@@ -138,7 +139,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			
 			// Load data
 			if(dbName != null) {
-				PcapAnalyzer pcapAnalyzer = new PcapAnalyzer();
+				pcapAnalyzer = new PcapAnalyzer();
 				pcapAnalyzer.loadProcessedData(dbName);
 				ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
 				tcpFloodData = FXCollections.observableArrayList(tcpVictims);
@@ -244,22 +245,22 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @param event
 	 */
 	public void showFloodTable(ActionEvent event) {
-		String paneView = "#flood_table_pane";
 		Button srcButton = (Button) event.getSource();
 		String id = srcButton.getId();
 		if (id.contains("tcp")) {
-			setUpFloodTable(paneView, columnMap, tcpFloodData, floodTable);
+			setUpFloodTable(PcapAnalyzer.TCP_FLOODING_TABLE_NAME, tcpFloodData);
 		} else if (id.contains("udp")) {
-			setUpFloodTable(paneView, columnMap, udpFloodData, floodTable);
+			setUpFloodTable(PcapAnalyzer.UDP_FLOODING_TABLE_NAME, udpFloodData);
 		} else if (id.contains("icmp")) {
-			setUpFloodTable(paneView, columnMap, icmpFloodData, floodTable);
+			setUpFloodTable(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME, icmpFloodData);
 		} else {
 			System.out.println("Button id not recognized: " + id);
 		}
 	}
 
-	private void setUpFloodTable(String paneView, HashMap<String, TableColumn<RowContent, String>> columnMap, ObservableList<RowContent> data, TableView<RowContent> floodTable) {
+	private void setUpFloodTable(String tableName, ObservableList<RowContent> data) {
 		//Need to show pane first since "setCellValueFactory" needs it.
+		String paneView = "#flood_table_pane";
 		showResultView(paneView);
 		// Setup the columns with the correct variable of RowContent
 		columnMap.get(RowContent.SOURCE_ADDRESS).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.SOURCE_ADDRESS));
@@ -268,6 +269,8 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		columnMap.get(RowContent.ATTACK_RATE).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.ATTACK_RATE));
 		columnMap.get(RowContent.COUNTRY_NAME).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.COUNTRY_NAME));
 		columnMap.get(RowContent.CITY_NAME).setCellValueFactory(new PropertyValueFactory<RowContent, String>(RowContent.CITY_NAME));
+		// Assigns 
+		floodTable.setUserData(tableName);
 		// Fill up the table
 		floodTable.setItems(data);
 	}
@@ -321,21 +324,36 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	public void showDosRate(ActionEvent event) {
 		Button srcButton = (Button) event.getSource();
 		String id = srcButton.getId();
+		setLineChartData(null, null, null);
+		//lineChartView.autosize();
+		showResultView("#line_chart_pane");
+	}
+
+	/**
+	 * 
+	 */
+	private void setLineChartData(byte[] address, String addressString,  String tableName) {
 		ObservableList<XYChart.Series<String, Number>> series = FXCollections.observableArrayList();
-		series.add(new XYChart.Series<>("TCP rate", tcpAttackRate));
-		series.add(new XYChart.Series<>("UDP rate", udpAttackRate));
-		series.add(new XYChart.Series<>("ICMP rate", icmpAttackRate));
-		//lineChartView = new LineChart<Timestamp, Number>(xAxis, yAxis, series);
+		if (address == null) {
+			// Uses data from all affected addresses
+			series.add(new XYChart.Series<>("TCP rate", tcpAttackRate));
+			series.add(new XYChart.Series<>("UDP rate", udpAttackRate));
+			series.add(new XYChart.Series<>("ICMP rate", icmpAttackRate));
+		} else {
+			// Uses data for a specific address
+			ArrayList<RateContent> attackList = pcapAnalyzer.getAttackRateForAddress(tableName, address);
+			series.add(new XYChart.Series<>(addressString + " rate", convertPlotPoints(attackList)));
+		}
 		lineChartView.setCreateSymbols(false);
 		lineChartView.setAnimated(false);
 		lineChartView.setData(series);
-		//lineChartView.autosize();
 		showResultView("#line_chart_pane");
 	}
 
 	@Override
 	public void initialize(URL arg0, ResourceBundle arg1) {
 		hideAllResultViews();
+		// Initialize table
 		columnMap = new HashMap<String, TableColumn<RowContent, String>>();
 		columnMap.put(RowContent.SOURCE_ADDRESS, ipColumn);
 		columnMap.put(RowContent.NUMBER_OF_PACKETS, numOfPacketsColumn);
@@ -343,9 +361,18 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		columnMap.put(RowContent.ATTACK_RATE, attackRateColumn);
 		columnMap.put(RowContent.COUNTRY_NAME, countryColumn);
 		columnMap.put(RowContent.CITY_NAME, cityColumn);
-		
+		floodTable.getSelectionModel().selectedItemProperty().addListener((observableValue, oldValue, newValue) -> {
+			byte[] address = observableValue.getValue().getSrcAddressArr();
+			String addressString = observableValue.getValue().getSrcAddress();
+			String tableName = (String) floodTable.getUserData();
+			setLineChartData(address, addressString, tableName);
+		});
+		// Initialize map
 		mapView.addMapInializedListener(this);
-	    
+		// Initialize LineChart
+		tcpAttackRate = FXCollections.observableArrayList();
+		udpAttackRate = FXCollections.observableArrayList();
+		icmpAttackRate = FXCollections.observableArrayList();
 		
 	}
 
@@ -356,7 +383,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	public void mapInitialized() {
 		 //Set the initial properties of the map.
 		mapOptions = new MapOptions();
-
 	    mapOptions.center(new LatLong(0, 0))
 	    		.mapType(MapTypeIdEnum.ROADMAP)
 	            .overviewMapControl(false)
@@ -366,9 +392,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	            .streetViewControl(false)
 	            .zoomControl(false)
 	            .zoom(1);
-		//create blank map
-	    //map = mapView.createMap(mapOptions);
-        
 	}
 
 	/**

@@ -43,15 +43,12 @@ public class PcapAnalyzer {
 	private HashMap<String,ArrayList<RowContent>> dosStatistics = new HashMap<String,ArrayList<RowContent>>();
 	private static int packetSize = 5000000;
 	private Logger logger;
+	private DbStore dbStore;
 	
 	public PcapAnalyzer() {
 		logger = LogManager.getLogger();
+		dbStore = null;
 	}
-/*
-	public static void main(String[] args) {
-		
-	}
-	*/
 	
 	/**
 	 * Checks if file was already parsed in the DB.
@@ -89,7 +86,7 @@ public class PcapAnalyzer {
 		
 		// Create DB
 		String databaseName = parseDbName(originalfile);
-		DbStore dbStore = new DbStore(databaseName, true);
+		dbStore = new DbStore(databaseName, true);
 		
 		long startTime = System.currentTimeMillis();
 		
@@ -199,7 +196,7 @@ public class PcapAnalyzer {
 	}
 	
 	public void loadProcessedData(String dbName) {
-		DbStore dbStore = new DbStore(dbName, false);
+		dbStore = new DbStore(dbName, false);
 		// Load statistics
 		dbStore.getSummaryTable(statistics);
 		
@@ -238,6 +235,11 @@ public class PcapAnalyzer {
 	 */
 	public ArrayList<RateContent> getAttackRate(String key) {
 		return rateStatistics.get(key);
+	}
+	
+	public ArrayList<RateContent> getAttackRateForAddress(String tableName, byte[] address) {
+		if (dbStore == null) return null;
+		return dbStore.getAttackRate(tableName, address);
 	}
 
 	/**
