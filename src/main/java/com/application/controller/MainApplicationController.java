@@ -23,10 +23,14 @@ import com.database.RowContent;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -40,6 +44,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.AnchorPane;
@@ -49,6 +54,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 
 import com.lynden.gmapsfx.GoogleMapView;
 import com.lynden.gmapsfx.MapComponentInitializedListener;
@@ -91,8 +97,28 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	private HashMap<String, TableColumn<RowContent, String>> columnMap;
 	private MapOptions mapOptions;
 	private PcapAnalyzer pcapAnalyzer;
+	private String dbName;
 	
-	
+	/**
+	 * Opens the Preferences Dialog
+	 * @param event
+	 */
+	public void openPreferences(ActionEvent event) {
+		// Launch the Preferences window
+		Parent root1;
+		try {
+			root1 = FXMLLoader.load(getClass().getResource("/com/application/view/Properties.fxml"));
+			Stage newStage = new Stage();
+			newStage.setScene(new Scene(root1, 300, 275));
+			newStage.setTitle("Preferences");
+			newStage.initModality(Modality.WINDOW_MODAL);
+			newStage.initOwner(mainBorderPane.getScene().getWindow());
+			newStage.showAndWait();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
+	}
 
 	/**
 	 * Opens dialog for users to select a PCAP file to be processed.
@@ -123,6 +149,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @param event
 	 */
 	public void openPreviouslyProcessedData(ActionEvent event) {
+		dbName = null;
 		try {
 			// Launch the File History view
 			Parent root1  = FXMLLoader.load(getClass().getResource("/com/application/view/DatabaseNames.fxml"));
@@ -135,37 +162,55 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			
 			// Get selection if any
 			newStage.getUserData();
-			String dbName = (String) newStage.getUserData();
-			
-			// Load data
-			if(dbName != null) {
-				pcapAnalyzer = new PcapAnalyzer();
-				pcapAnalyzer.loadProcessedData(dbName);
-				ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
-				tcpFloodData = FXCollections.observableArrayList(tcpVictims);
-				
-				ArrayList<RowContent> udpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
-				udpFloodData = FXCollections.observableArrayList(udpVictims);
-				
-				ArrayList<RowContent> icmpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
-				icmpFloodData = FXCollections.observableArrayList(icmpVictims);
-				
-				ArrayList<RateContent> tcpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
-				tcpAttackRate = simplifyPlotPoints(tcpRate);
-				
-				ArrayList<RateContent> udppRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
-				udpAttackRate = simplifyPlotPoints(udppRate);
-						
-				ArrayList<RateContent> icmpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
-				icmpAttackRate = simplifyPlotPoints(icmpRate);
-						
-				loadOverviewData(pcapAnalyzer);
-				showOverviewData();
-			}
+			dbName = (String) newStage.getUserData();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
+		// Load data
+		if(dbName != null) {
+			mainBorderPane.getScene().setCursor(Cursor.WAIT);
+			Task<Void> task = new Task<Void>() {
+	            @Override
+	            protected Void call() throws Exception {
+	            	mainBorderPane.getScene().setCursor(Cursor.WAIT);
+	    			
+	            	pcapAnalyzer = new PcapAnalyzer();
+	    			
+	    			pcapAnalyzer.loadProcessedData(dbName);
+	    			
+	    			ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
+	    			tcpFloodData = FXCollections.observableArrayList(tcpVictims);
+	    			
+	    			ArrayList<RowContent> udpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
+	    			udpFloodData = FXCollections.observableArrayList(udpVictims);
+	    			
+	    			ArrayList<RowContent> icmpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
+	    			icmpFloodData = FXCollections.observableArrayList(icmpVictims);
+	    			
+	    			ArrayList<RateContent> tcpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
+	    			tcpAttackRate = simplifyPlotPoints(tcpRate);
+	    			
+	    			ArrayList<RateContent> udppRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
+	    			udpAttackRate = simplifyPlotPoints(udppRate);
+	    					
+	    			ArrayList<RateContent> icmpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
+	    			icmpAttackRate = simplifyPlotPoints(icmpRate);
+	    			
+	    			showOverviewData();
+	    			return null;
+	            }
+	        };
+	        
+	        task.setOnSucceeded(e -> {
+    			loadOverviewData(pcapAnalyzer);
+	        	mainBorderPane.getScene().setCursor(Cursor.DEFAULT);
+	        });
+	        Thread th = new Thread(task);
+	        //th.setDaemon(true);
+	        th.start();
+	        //Platform.runLater(task);
+		}
 	}
 
 	/**
@@ -378,12 +423,29 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		columnMap.put(RowContent.ATTACK_RATE, attackRateColumn);
 		columnMap.put(RowContent.COUNTRY_NAME, countryColumn);
 		columnMap.put(RowContent.CITY_NAME, cityColumn);
+		
+		// Set click events for table to open a line chart
 		floodTable.getSelectionModel().selectedItemProperty().addListener((observableValue, oldValue, newValue) -> {
 			byte[] address = observableValue.getValue().getSrcAddressArr();
 			String addressString = observableValue.getValue().getSrcAddress();
 			String tableName = (String) floodTable.getUserData();
 			setLineChartData(address, addressString, tableName);
 		});
+		
+		// Set mouse over events to rows with data to show user they can be clicked
+		floodTable.setRowFactory( tv -> {
+			TableRow<RowContent> row = new TableRow<>();
+			// change mouse to a hand pointer
+			row.setOnMouseEntered(mouseEvent -> {
+				if (!row.isEmpty()) tv.getScene().setCursor(Cursor.HAND);
+			});
+			// change black to the default on row exit
+			row.setOnMouseExited(mouseEvent -> {
+				tv.getScene().setCursor(Cursor.DEFAULT);
+			}); 
+			return row;
+		});
+		
 		// Initialize map
 		mapView.addMapInializedListener(this);
 		// Initialize LineChart
