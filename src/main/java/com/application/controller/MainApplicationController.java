@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import com.analyzer.PcapAnalyzer;
 import com.database.RateContent;
@@ -43,6 +44,7 @@ import javafx.scene.chart.XYChart.Data;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -87,6 +89,8 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	@FXML private TableColumn<RowContent, String> cityColumn;
 	@FXML private GoogleMapView mapView;
 	@FXML private LineChart<String, Number> lineChartView;
+	@FXML private ProgressBar progressBar;
+	@FXML private Label progressLabel;
 	private GoogleMap map;
 	private ObservableList<RowContent> tcpFloodData;
 	private ObservableList<RowContent> udpFloodData;
@@ -136,10 +140,24 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		fileStage.initModality(Modality.WINDOW_MODAL);
 		fileStage.initOwner(mainBorderPane.getScene().getWindow());
 		File f = fileChooser.showOpenDialog(fileStage);
-		PcapAnalyzer pcapAnalyzer = new PcapAnalyzer();
-		System.out.println(pcapAnalyzer.isInDb(f));
-		PcapAnalyzer pa = new PcapAnalyzer();
-		pa.processPcapFile(f);
+		System.out.println("Is file in DB " + PcapAnalyzer.isInDb(f));
+		
+		startProgressIndicator();
+		Task<Void> task = new Task<Void>() {
+            @Override
+            protected Void call() throws Exception {
+            	PcapAnalyzer pa = new PcapAnalyzer(f);
+            	pa.processPcapFile();
+				return null;
+            }
+		};
+		task.setOnSucceeded(e -> {
+			//loadOverviewData(pcapAnalyzer);
+			stopProgressIndicator();
+        });
+        Thread th = new Thread(task);
+        th.setDaemon(true);
+        th.start();
 	}
 	
 	/**
@@ -169,12 +187,11 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		
 		// Load data
 		if(dbName != null) {
-			mainBorderPane.getScene().setCursor(Cursor.WAIT);
+			startProgressIndicator();
+			
 			Task<Void> task = new Task<Void>() {
 	            @Override
 	            protected Void call() throws Exception {
-	            	mainBorderPane.getScene().setCursor(Cursor.WAIT);
-	    			
 	            	pcapAnalyzer = new PcapAnalyzer();
 	    			
 	    			pcapAnalyzer.loadProcessedData(dbName);
@@ -204,10 +221,10 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	        
 	        task.setOnSucceeded(e -> {
     			loadOverviewData(pcapAnalyzer);
-	        	mainBorderPane.getScene().setCursor(Cursor.DEFAULT);
+    			stopProgressIndicator();
 	        });
 	        Thread th = new Thread(task);
-	        //th.setDaemon(true);
+	        th.setDaemon(true);
 	        th.start();
 	        //Platform.runLater(task);
 		}
@@ -281,9 +298,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		String size = FileUtils.byteCountToDisplaySize((long) pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_SIZE));
 		((Label) mainBorderPane.lookup("#fileSize")).setText(size);
 		long millis = (long) pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_PROCESS_TIME);
-		Date date = new Date(millis);
-		DateFormat formatter = new SimpleDateFormat("HH:mm:ss");
-		String timeFormatted = formatter.format(date); 
+		String timeFormatted = DurationFormatUtils.formatDuration(millis, "HH:mm:ss");
 		((Label) mainBorderPane.lookup("#parseTime")).setText(timeFormatted);
 		((Label) mainBorderPane.lookup("#packetsFound")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_PACKETS_READ)));
 		((Label) mainBorderPane.lookup("#packetsIpV4")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_IPV4_PACKETS)));
@@ -452,7 +467,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		tcpAttackRate = FXCollections.observableArrayList();
 		udpAttackRate = FXCollections.observableArrayList();
 		icmpAttackRate = FXCollections.observableArrayList();
-		
+		//progressLabel.setText("Processing please wait...   ");
 	}
 
 	/* (non-Javadoc)
@@ -500,5 +515,23 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			map.addMarker( marker );
 		}
 		
+	}
+	
+	/**
+	 * Starts indicators for long tasks
+	 */
+	private void startProgressIndicator() {
+		progressLabel.setText("Processing please wait...   ");
+		mainBorderPane.getScene().setCursor(Cursor.WAIT);
+    	progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+	}
+	
+	/**
+	 * Stops indicators for long tasks
+	 */
+	private void stopProgressIndicator() {
+		progressLabel.setText("");
+		progressBar.setProgress(0);
+		mainBorderPane.getScene().setCursor(Cursor.DEFAULT);
 	}
 }

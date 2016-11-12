@@ -612,9 +612,9 @@ public class DbStore {
 	}
 	
 	/**
-	 * Gets all the database names
+	 * Gets all the file names that were processes into databases.
 	 * 
-	 * @return Array containing the database names
+	 * @return Array containing the database file names
 	 */
 	public String[] getAllDataBaseNames() {
 		ArrayList<String> result = new ArrayList<String>();
@@ -624,7 +624,11 @@ public class DbStore {
 			DatabaseMetaData meta = (DatabaseMetaData) connection.getMetaData();
 			ResultSet rs = meta.getCatalogs();
 			while (rs.next()) {
-				result.add(rs.getString("TABLE_CAT"));
+				String dbName = rs.getString("TABLE_CAT");
+				String fileName = getFileNameFromDb(connection, dbName);
+				if (fileName != null) {
+					result.add(fileName);
+				}
 			}
 		} catch (SQLException e) {
 			logger.error("Database failed", e);
@@ -639,5 +643,28 @@ public class DbStore {
 			}
 		}
 		return result.toArray(new String[result.size()]);
+	}
+	
+	/**
+	 * Gets the file name used for a specifc database.
+	 * 
+	 * @param connection
+	 * @param dbName Database name to sear file on.
+	 * @return file name if found. Null otherwise.
+	 */
+	public String getFileNameFromDb(Connection connection, String dbName) {
+		String fileName = null;
+		String query= "SELECT fileName FROM " + dbName+ ".summary LIMIT 1";
+		Statement statement;
+		try {
+			statement = connection.createStatement();
+			ResultSet rs = statement.executeQuery(query);
+			while (rs.next()) {
+				fileName = rs.getString("fileName");
+			}
+		} catch (SQLException e) {
+			// Exceptions expected for DBs not recognized.
+		}
+		return fileName;
 	}
 }

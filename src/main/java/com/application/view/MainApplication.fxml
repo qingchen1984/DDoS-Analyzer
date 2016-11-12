@@ -56,7 +56,8 @@
    <bottom>
       <HBox alignment="TOP_RIGHT" BorderPane.alignment="CENTER">
          <children>
-            <ProgressBar prefWidth="200.0" progress="0.0" />
+            <Label fx:id="progressLabel" prefHeight="17.0" prefWidth="144.0" />
+            <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
          </children>
       </HBox>
    </bottom>

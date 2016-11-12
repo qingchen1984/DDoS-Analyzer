@@ -38,6 +38,8 @@ dependencies {
 	compile 'com.maxmind.geoip2:geoip2:2.8.0'
 	compile group: 'com.vividsolutions', name: 'jts', version: '1.11'
 	compile group: 'com.lynden', name: 'GMapsFX', version: '2.0.9'
+	compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.0'
+	
 
     // Declare the dependency for your favourite test framework you want to use in your tests.
     // TestNG is also supported by the Gradle Test task. Just change the

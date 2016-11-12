@@ -44,6 +44,23 @@ public class PcapAnalyzer {
 	private static int packetSize = 5000000;
 	private Logger logger;
 	private DbStore dbStore;
+	private boolean splitFile;
+	private String tmpDirName;
+	private File[] files;
+	private String databaseName;
+	private File originalfile;
+	private HashMap<Thread, PcapReader> threadArr;
+	
+	public PcapAnalyzer(File originalfile) {
+		this();
+		this.originalfile = originalfile;
+		databaseName = parseDbName(originalfile);
+		dbStore = new DbStore(databaseName, true);
+		threadArr = new HashMap<Thread, PcapReader>();
+		tmpDirName = System.getProperty("java.io.tmpdir") + "pcapTmp";
+		splitFile = false;
+		files = null;
+	}
 	
 	public PcapAnalyzer() {
 		logger = LogManager.getLogger();
@@ -56,75 +73,62 @@ public class PcapAnalyzer {
 	 * @param file File to be checked
 	 * @return true if file has been found parser, false otherwise.
 	 */
-	public boolean isInDb(File file) {
-		String databaseName = parseDbName(file);
+	public static boolean isInDb(File file) {
+		String fileName = file.getName();
 		DbStore db = new DbStore("",false);
 		String[] dbNames = db.getAllDataBaseNames();
 		for (String storedDB : dbNames) {
-			if (databaseName.equals(storedDB)) {
+			if (fileName.equals(storedDB)) {
 				return true;
 			}
 		}
 		return false;
 	}
 	
-	public String[] getDbNames() {
+	/**
+	 * Gets the file name that were previously processes in the database.
+	 * 
+	 * @return
+	 */
+	public static String[] getDbNames() {
 		DbStore db = new DbStore("",false);
 		return db.getAllDataBaseNames();
 	}
 	
-	public void processPcapFile(File originalfile) {
-		
-		String dirName = System.getProperty("java.io.tmpdir") + "pcapTmp";
-		boolean splitFile = false;
-		
-		// Calculate if file needs feeding depending on size.
-		File[] files = null;
-		if (originalfile.length() > 1 * 1024 * 1024 * 1024) {
-			splitFile = true;
-		}
-		
-		// Create DB
-		String databaseName = parseDbName(originalfile);
-		dbStore = new DbStore(databaseName, true);
-		
+	public void processPcapFile() {
 		long startTime = System.currentTimeMillis();
+		splitFile(originalfile);
 		
-		if (splitFile) {
-			// Split pcap file
-			PcapManager pm = new PcapManager();
-			pm.pcapSplitter(originalfile.getPath(), dirName, packetSize);
-			
-			// Get the file from tmp dir
-			File f = new File(dirName);
-			files = f.listFiles();
-		} else {
-			files = new File[1];
-			files[0] = originalfile;
-		}
 		
-		// Parse each file in separate threads
-		HashMap<Thread, PcapReader> threadArr = new HashMap<Thread, PcapReader>();
-		for(File file: files){
-			logger.info("File name: " + file.getName());
-			PcapReader pr = new PcapReader(file.getAbsolutePath(), databaseName);
-			Thread th = new Thread(pr);
-			th.setName(file.getName());
-			th.start();
-			threadArr.put(th,  pr);
-		}
+		Iterator<Entry<Thread, PcapReader>> iterator;
+		processFile();
 		
-		// Wait until every thread finishes
-		Iterator<Entry<Thread, PcapReader>> iterator = threadArr.entrySet().iterator();
-		try {
-			while (iterator.hasNext()) {
-				iterator.next().getKey().join();
-			}
-		} catch (InterruptedException e) {
-			logger.error(e.getMessage());
-		}
 		long endTime = System.currentTimeMillis();
 		
+		setStats(originalfile, startTime, endTime);
+		
+		cleanUp();
+	}
+
+	/**
+	 * 
+	 */
+	public void cleanUp() {
+		// Delete tmp directory
+		try {
+			FileUtils.deleteDirectory(new File(tmpDirName));
+		} catch (IOException e) {
+			logger.error(e.getMessage());
+		}
+	}
+
+	/**
+	 * @param originalfile
+	 * @param startTime
+	 * @param endTime
+	 */
+	public void setStats(File originalfile, long startTime, long endTime) {
+		Iterator<Entry<Thread, PcapReader>> iterator;
 		// Get statistics
 		long packetsProcessed = 0;
 		long packetsRead = 0;
@@ -183,20 +187,58 @@ public class PcapAnalyzer {
 		logger.info("TCP Flood packets Read: " + tcpFloodPacketsRead);
 		logger.info("UDP Flood packets Read: " + udpFloodPacketsRead);
 		logger.info("ICMP Flood packets Read: " + icmpFloodPacketsRead);
-		
-		// Delete tmp directory
-		try {
-			FileUtils.deleteDirectory(new File(dirName));
-		} catch (IOException e) {
-			logger.error(e.getMessage());
+	}
+
+	/**
+	 * 
+	 */
+	public void processFile() {
+		for(File file: files){
+			logger.info("File name: " + file.getName());
+			PcapReader pr = new PcapReader(file.getAbsolutePath(), databaseName);
+			Thread th = new Thread(pr);
+			th.setName(file.getName());
+			th.start();
+			threadArr.put(th,  pr);
 		}
 		
+		// Wait until every thread finishes
+		Iterator<Entry<Thread, PcapReader>> iterator = threadArr.entrySet().iterator();
+		try {
+			while (iterator.hasNext()) {
+				iterator.next().getKey().join();
+			}
+		} catch (InterruptedException e) {
+			logger.error(e.getMessage());
+		}
+	}
+
+	/**
+	 * @param originalfile
+	 */
+	public void splitFile(File originalfile) {
+		if (originalfile.length() > 1 * 1024 * 1024 * 1024) {
+			splitFile = true;
+		}
+		//long startTime = System.currentTimeMillis();
 		
-		
+		if (splitFile) {
+			// Split pcap file
+			PcapManager pm = new PcapManager();
+			pm.pcapSplitter(originalfile.getPath(), tmpDirName, packetSize);
+			
+			// Get the file from tmp dir
+			File f = new File(tmpDirName);
+			files = f.listFiles();
+		} else {
+			files = new File[1];
+			files[0] = originalfile;
+		}
 	}
 	
 	public void loadProcessedData(String dbName) {
-		dbStore = new DbStore(dbName, false);
+		
+		dbStore = new DbStore(parseDbName(new File(dbName)), false);
 		// Load statistics
 		dbStore.getSummaryTable(statistics);
 		
@@ -237,6 +279,12 @@ public class PcapAnalyzer {
 		return rateStatistics.get(key);
 	}
 	
+	/**
+	 * 
+	 * @param tableName
+	 * @param address
+	 * @return
+	 */
 	public ArrayList<RateContent> getAttackRateForAddress(String tableName, byte[] address) {
 		if (dbStore == null) return null;
 		return dbStore.getAttackRate(tableName, address);
@@ -250,7 +298,7 @@ public class PcapAnalyzer {
 	 */
 	private String parseDbName(File file) {
 		String databaseName = file.getName();
-		databaseName = databaseName.substring(0, databaseName.indexOf("."));
+		databaseName = databaseName.replace(".",  "_");
 		return databaseName;
 	}
 }
