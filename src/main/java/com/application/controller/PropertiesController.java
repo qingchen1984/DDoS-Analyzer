@@ -24,45 +24,28 @@ import javafx.stage.Stage;
  *
  */
 public class PropertiesController implements Initializable {
+
 	@FXML
-	private TextField packets;
+	public TextField packets;
 	@FXML
-	private TextField time;
+	public TextField time;
 	@FXML
-	private TextField rate;
+	public TextField rate;
+	private PropertiesData propData;
 
 	/* (non-Javadoc)
 	 * @see javafx.fxml.Initializable#initialize(java.net.URL, java.util.ResourceBundle)
 	 */
 	@Override
 	public void initialize(URL location, ResourceBundle resources) {
-		Properties prop = new Properties();
-		InputStream input = null;
-
-		try {
-
-			input = new FileInputStream("src/main/resources/config.properties");
-
-			// load a properties file
-			prop.load(input);
-
-			// get the property value and display it
-			packets.setText(prop.getProperty("minimumPackets"));
-			time.setText(prop.getProperty("minimumTime"));
-			rate.setText(prop.getProperty("minimumRate"));
-
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		} finally {
-			if (input != null) {
-				try {
-					input.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-		
+		propData = new PropertiesData();
+		// get the property value and display it
+		System.out.println("Value of property " + propData.getProperty(PropertiesData.MINIMUM_PACKETS));
+		System.out.println("Value of property " + propData.getProperty(PropertiesData.MINIMUM_TIME));
+		System.out.println("Value of property " + propData.getProperty(PropertiesData.MINIMUM_RATE));
+		packets.setText(propData.getProperty(PropertiesData.MINIMUM_PACKETS));
+		time.setText(propData.getProperty(PropertiesData.MINIMUM_TIME));
+		rate.setText(propData.getProperty(PropertiesData.MINIMUM_RATE));
 	}
 	
 	/**
@@ -71,33 +54,16 @@ public class PropertiesController implements Initializable {
 	 * @param event
 	 */
 	public void saveInfo(ActionEvent event) {
-		Properties prop = new Properties();
-		OutputStream output = null;
+		
+		// set the properties value
+		propData.setProperty(PropertiesData.MINIMUM_PACKETS, packets.getText());
+		propData.setProperty(PropertiesData.MINIMUM_TIME, time.getText());
+		propData.setProperty(PropertiesData.MINIMUM_RATE, rate.getText());
 
-		try {
-
-			output = new FileOutputStream("src/main/resources/config.properties");
-
-			// set the properties value
-			prop.setProperty("minimumPackets", packets.getText());
-			prop.setProperty("minimumTime", time.getText());
-			prop.setProperty("minimumRate", rate.getText());
-
-			// save properties to project root folder
-			prop.store(output, null);
-
-		} catch (IOException io) {
-			io.printStackTrace();
-		} finally {
-			if (output != null) {
-				try {
-					output.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-		}
+		// save properties 
+		propData.saveProperties();
+		propData.closeConnections();
+		
 		closeWindow(event);
 	}
 	

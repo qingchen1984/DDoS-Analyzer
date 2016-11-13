@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -41,7 +42,7 @@ public class PcapAnalyzer {
 	private HashMap<String,Object> statistics = new HashMap<String,Object>();
 	private HashMap<String,ArrayList<RateContent>> rateStatistics = new HashMap<String,ArrayList<RateContent>>();
 	private HashMap<String,ArrayList<RowContent>> dosStatistics = new HashMap<String,ArrayList<RowContent>>();
-	private static int packetSize = 5000000;
+	private static final int PACKET_COUNT_MAX = 5000000; //5000000 ; 10000000
 	private Logger logger;
 	private DbStore dbStore;
 	private boolean splitFile;
@@ -49,6 +50,7 @@ public class PcapAnalyzer {
 	private File[] files;
 	private String databaseName;
 	private File originalfile;
+	private long processTimeInMillis;
 	private HashMap<Thread, PcapReader> threadArr;
 	
 	public PcapAnalyzer(File originalfile) {
@@ -58,8 +60,14 @@ public class PcapAnalyzer {
 		dbStore = new DbStore(databaseName, true);
 		threadArr = new HashMap<Thread, PcapReader>();
 		tmpDirName = System.getProperty("java.io.tmpdir") + "pcapTmp";
-		splitFile = false;
-		files = null;
+		processTimeInMillis = 0;
+		files = new File[1];
+		files[0] = originalfile;
+		if (originalfile.length() > 1 * 1024 * 1024 * 1024) {
+			splitFile = true;
+	    } else {
+	    	splitFile = true;
+	    }
 	}
 	
 	public PcapAnalyzer() {
@@ -96,22 +104,18 @@ public class PcapAnalyzer {
 	}
 	
 	public void processPcapFile() {
-		long startTime = System.currentTimeMillis();
-		splitFile(originalfile);
+
+		//splitFile(originalfile);
 		
-		
-		Iterator<Entry<Thread, PcapReader>> iterator;
-		processFile();
-		
-		long endTime = System.currentTimeMillis();
-		
-		setStats(originalfile, startTime, endTime);
+		//processFile();
+
+		setStats();
 		
 		cleanUp();
 	}
 
 	/**
-	 * 
+	 * Removes temporary files created
 	 */
 	public void cleanUp() {
 		// Delete tmp directory
@@ -123,11 +127,13 @@ public class PcapAnalyzer {
 	}
 
 	/**
+	 * Gets statistics from the file processing threads and saves it to the database.
+	 * 
 	 * @param originalfile
 	 * @param startTime
 	 * @param endTime
 	 */
-	public void setStats(File originalfile, long startTime, long endTime) {
+	public void setStats() {
 		Iterator<Entry<Thread, PcapReader>> iterator;
 		// Get statistics
 		long packetsProcessed = 0;
@@ -174,9 +180,9 @@ public class PcapAnalyzer {
 		
 		// Save statistics 
 		dbStore.setSummaryTable(originalfile.getName(), originalfile.length(), 
-				(endTime - startTime), infoPackets);
+				processTimeInMillis, infoPackets);
 		
-		logger.info("All threads completed in: " + (endTime - startTime)/1000 + " seconds");
+		logger.info("All threads completed in: " + processTimeInMillis/1000 + " seconds");
 		logger.info("Packets read: " + packetsRead);
 		logger.info("Packets Processed: " + packetsProcessed);
 		logger.info("TCP packets Read: " + tcpPacketsRead);
@@ -190,18 +196,52 @@ public class PcapAnalyzer {
 	}
 
 	/**
-	 * 
+	 * Process files and stores into databases
 	 */
-	public void processFile() {
+	public void processFile(AtomicInteger progress) {
+		ArrayList<AtomicInteger> progressArr = new ArrayList<AtomicInteger>();
+		long startTime = System.currentTimeMillis();
 		for(File file: files){
 			logger.info("File name: " + file.getName());
-			PcapReader pr = new PcapReader(file.getAbsolutePath(), databaseName);
+			AtomicInteger threadProgress = new AtomicInteger(0);
+			PcapReader pr = new PcapReader(file.getAbsolutePath(), databaseName, threadProgress, PACKET_COUNT_MAX);
 			Thread th = new Thread(pr);
 			th.setName(file.getName());
 			th.start();
-			threadArr.put(th,  pr);
+			threadArr.put(th, pr);
+			progressArr.add(threadProgress);
 		}
 		
+		//Create thread to compiles the progress from all processing threads into a single one
+		int arraySize = progressArr.size();
+		Runnable reader = new Runnable() {
+			private int current = 0;
+			@Override
+			public void run() {
+				while (current < 100) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					double overallProgress = 0.0;
+					for (AtomicInteger threadProgress : progressArr) {
+						double individualVal = (double) threadProgress.get();
+						individualVal = individualVal/100.0;
+						overallProgress = overallProgress + individualVal;
+					}
+					int newVal = (int) ((overallProgress / arraySize) * 100);
+					if (newVal != current) {
+						current = newVal;
+						progress.set(current);
+					}
+				}
+			}
+		};
+		Thread th1 = new Thread(reader);
+        th1.setName("Overall Progress watcher");
+        th1.start();
+        
 		// Wait until every thread finishes
 		Iterator<Entry<Thread, PcapReader>> iterator = threadArr.entrySet().iterator();
 		try {
@@ -211,48 +251,64 @@ public class PcapAnalyzer {
 		} catch (InterruptedException e) {
 			logger.error(e.getMessage());
 		}
+		long endTime = System.currentTimeMillis();
+		processTimeInMillis = processTimeInMillis + (endTime - startTime);
+		progress.set(100);
 	}
 
 	/**
+	 * Splits files to be processed if needed.
+	 * 
 	 * @param originalfile
 	 */
-	public void splitFile(File originalfile) {
-		if (originalfile.length() > 1 * 1024 * 1024 * 1024) {
-			splitFile = true;
-		}
-		//long startTime = System.currentTimeMillis();
-		
+	public void splitFile(AtomicInteger progress) {
+		long startTime = System.currentTimeMillis();
 		if (splitFile) {
 			// Split pcap file
-			PcapManager pm = new PcapManager();
-			pm.pcapSplitter(originalfile.getPath(), tmpDirName, packetSize);
+			PcapManager pm = new PcapManager(progress);
+			pm.pcapSplitter(originalfile.getPath(), tmpDirName, PACKET_COUNT_MAX);
 			
-			// Get the file from tmp dir
+			// Get the files from tmp dir
 			File f = new File(tmpDirName);
 			files = f.listFiles();
-		} else {
-			files = new File[1];
-			files[0] = originalfile;
 		}
+		long endTime = System.currentTimeMillis();
+		processTimeInMillis = processTimeInMillis + (endTime - startTime);
 	}
 	
-	public void loadProcessedData(String dbName) {
+	/**
+	 * Processes data from database and stores them in memory.
+	 * Use getStatisticss, getDosVictims, getAttackRate to retrieve it.
+	 * 
+	 * @param dbName file name that was used to store into database
+	 * @param minPacket
+	 * @param minSecs
+	 * @param rate
+	 */
+	public void loadProcessedData(String dbName, int minPacket, int minSecs, int rate) {
 		
 		dbStore = new DbStore(parseDbName(new File(dbName)), false);
 		// Load statistics
 		dbStore.getSummaryTable(statistics);
 		
-		dosStatistics.put(TCP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.TCP_FLOODING_TABLE_NAME));
-		dosStatistics.put(UDP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.UDP_FLOODING_TABLE_NAME));
-		dosStatistics.put(ICMP_FLOODING_TABLE_NAME, dbStore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME));
+		dosStatistics.put(TCP_FLOODING_TABLE_NAME, 
+				dbStore.getDosVictims(DbStore.TCP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		dosStatistics.put(UDP_FLOODING_TABLE_NAME, 
+				dbStore.getDosVictims(DbStore.UDP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		dosStatistics.put(ICMP_FLOODING_TABLE_NAME, 
+				dbStore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
 		
-		rateStatistics.put(TCP_FLOODING_TABLE_NAME, dbStore.getAttackRate(DbStore.TCP_FLOODING_TABLE_NAME));
-		rateStatistics.put(UDP_FLOODING_TABLE_NAME, dbStore.getAttackRate(DbStore.UDP_FLOODING_TABLE_NAME));
-		rateStatistics.put(ICMP_FLOODING_TABLE_NAME, dbStore.getAttackRate(DbStore.ICMP_FLOODING_TABLE_NAME));
+		rateStatistics.put(TCP_FLOODING_TABLE_NAME, 
+				dbStore.getAttackRate(DbStore.TCP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		rateStatistics.put(UDP_FLOODING_TABLE_NAME, 
+				dbStore.getAttackRate(DbStore.UDP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		rateStatistics.put(ICMP_FLOODING_TABLE_NAME, 
+				dbStore.getAttackRate(DbStore.ICMP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
 		
 	}
 	
 	/**
+	 * Gets general statistics previously processed by loadProcessedData.
 	 * 
 	 * @param key
 	 * @return
@@ -262,6 +318,7 @@ public class PcapAnalyzer {
 	}
 	
 	/**
+	 * Gets DOS statistics previously processed by loadProcessedData.
 	 * 
 	 * @param key
 	 * @return
@@ -271,6 +328,7 @@ public class PcapAnalyzer {
 	}
 	
 	/**
+	 * Gets overall attack rate previously processed by loadProcessedData.
 	 * 
 	 * @param key
 	 * @return

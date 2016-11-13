@@ -4,17 +4,22 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class InputStreamReaderThread implements Runnable {
-	InputStream inputStream;
+	
+	private InputStream inputStream;
+	private final AtomicInteger progress;
+	private int localProgress = 0;
 
-	InputStreamReaderThread(InputStream is) {
+	public InputStreamReaderThread(InputStream is, AtomicInteger progress) {
 		inputStream = is;
+		this.progress = progress;
 	}
 
 	@Override
 	public void run() {
-		for (;;) {
+		while (localProgress < 100) {
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -30,7 +35,7 @@ public class InputStreamReaderThread implements Runnable {
 	}
 
 	// convert InputStream to String
-	private static void printFromInputStream(InputStream is) throws Exception {
+	private void printFromInputStream(InputStream is) throws Exception {
 
 		BufferedReader br = null;
 		try {
@@ -38,17 +43,29 @@ public class InputStreamReaderThread implements Runnable {
 			char[] chArr = new char[4];
 			while ((br.read(chArr)) != -1) {
 				StringBuilder sb = new StringBuilder();
-				if (chArr[1] == '%' && Character.isDigit(chArr[0])) {
+				//checks for single digit percentages like 0-9%
+				if (chArr[1] == '%' 
+						&& Character.isDigit(chArr[0])) { 
 					sb.append(chArr[0]);
-				} else if (chArr[2] == '%' && Character.isDigit(chArr[0]) && Character.isDigit(chArr[1])) {
-					sb.append(chArr[0]);
-					sb.append(chArr[1]);
-				} else if (chArr[2] == '%' && Character.isDigit(chArr[0]) && Character.isDigit(chArr[1])) {
+				} 
+				//checks for double digit percentages like 10-99%
+				else if (chArr[2] == '%' 
+						&& Character.isDigit(chArr[0]) 
+						&& Character.isDigit(chArr[1])) {
 					sb.append(chArr[0]);
 					sb.append(chArr[1]);
 				}
+				//checks for triple digit percentages like 100%
+				else if (chArr[3] == '%' 
+						&& Character.isDigit(chArr[0]) 
+						&& Character.isDigit(chArr[1])  
+						&& Character.isDigit(chArr[2])) {
+					sb.append(chArr[0]);
+					sb.append(chArr[1]);
+					sb.append(chArr[2]);
+				}
 				if (sb.length() > 0) {
-					System.out.print(sb);
+					updateProgress(Integer.valueOf(sb.toString()));
 				}
 			}
 		} catch (IOException e) {
@@ -61,6 +78,18 @@ public class InputStreamReaderThread implements Runnable {
 					e.printStackTrace();
 				}
 			}
+		}
+	}
+	
+	/**
+	 * Updates splitting progress if there is a new value.
+	 * 
+	 * @param update new value
+	 */
+	private synchronized void updateProgress(int update) {
+		if (localProgress != update) {
+			localProgress = update;
+			progress.set(localProgress);
 		}
 	}
 

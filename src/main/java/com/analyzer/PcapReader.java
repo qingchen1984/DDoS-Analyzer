@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,16 +56,18 @@ public class PcapReader implements Runnable {
 	private int icmpPackets;
 	private int unknownPackets;
 	private int illegalPackets;
-	public volatile int progress;
 	public int totalPackets;
 	public int tcpFloodPackets;
 	public int udpFloodPackets;
 	public int icmpFloodPackets;
 	private DbStore dbStrore;
+	private AtomicInteger progress;
 
 	private String pcapFile;
 
-	PcapReader(String pcapFileLocation, String dbName) {
+	private int packetMax;
+
+	PcapReader(String pcapFileLocation, String dbName, AtomicInteger progress, int packetMax) {
 		logger = LogManager.getLogger(PcapReader.class);
 		pcapFile = pcapFileLocation;
 		packetIndex = 0;
@@ -79,6 +82,8 @@ public class PcapReader implements Runnable {
 		tcpFloodPackets = 0;
 		udpFloodPackets = 0;
 		icmpFloodPackets = 0;
+		this.progress = progress;
+		this.packetMax = packetMax;
 		dbStrore = new DbStore(dbName, false);
 	}
 	
@@ -156,9 +161,12 @@ public class PcapReader implements Runnable {
 		int destPort = -1;
 		boolean ack = false;
 		boolean syn = false;
+		double division = 1;
 		logger.info("Parsing pcap file: " + pcapFile);
 		long startTime = System.currentTimeMillis();
 		for (;;) {
+			int progressVal = (int) (((double) packetIndex) / packetMax * 100);
+			progress.set(progressVal);
 			try {
 				packet = handle.getNextPacketEx();
 				packetIndex++;
@@ -292,6 +300,7 @@ public class PcapReader implements Runnable {
 		logger.debug("Packets read: " + packetIndex);
 		logger.debug("Packets processed: " + packetProcessed);
 		handle.close();
+		progress.set(100);
 	}
 
 }

@@ -3,6 +3,7 @@ package com.analyzer;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,6 +16,11 @@ import org.apache.logging.log4j.Logger;
  */
 public class PcapManager {
 	private static Logger logger;
+	private AtomicInteger progress;
+	
+	public PcapManager(AtomicInteger progress) {
+		this.progress = progress;
+	}
 	
 	/**
 	 * Splits pcap file into fixed-sized packets.
@@ -43,6 +49,7 @@ public class PcapManager {
 		}
 		
 		//Start SplitCap.exe to get file split
+		logger.info("Splitting files.");
 		Process p;
 		try {
 			p = Runtime.getRuntime().exec(cmd);
@@ -52,15 +59,19 @@ public class PcapManager {
 		
 		//Read the progress output
 		InputStream is = p.getInputStream();
-		InputStreamReaderThread iSReader = new InputStreamReaderThread(is);
-		iSReader.run();
+		InputStreamReaderThread iSReader = new InputStreamReaderThread(is, progress);
+		//iSReader.run();
 		
-		//Hold until finished
+		Thread th = new Thread(iSReader);
+		th.setName("Split Progress Reader");
+		th.start();
 		try {
 			result = p.waitFor();
 		} catch (InterruptedException e) {
 			return result;
 		}
+		progress.set(100); // Setting the progress to 100% since it completed
+		logger.info("Splitting completed into " + f.list().length + " files.");
 		return result;
 	}
 }

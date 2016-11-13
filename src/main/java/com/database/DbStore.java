@@ -395,7 +395,7 @@ public class DbStore {
 	 * @param fileName File name from the PCAP file that was processed.
 	 * @param fileSize File size from the PCAP file that was processed.
 	 * @param processTime Process time from the PCAP file that was processed.
-	 * @param packets HashMap containing the packet statistics
+	 * @param data.packets HashMap containing the packet statistics
 	 * @return true if successful in getting the info, false otherwise.
 	 */
 	public boolean getSummaryTable(HashMap<String, Object> statistics) {
@@ -453,19 +453,40 @@ public class DbStore {
 	/**
 	 * Query to be used to get a list of DOS victims and the amount of attack packets.
 	 * 
-	 * @param tableName Table name where to get the list from
+	 * @param tableName Table name where to get the list from.
+	 * @param minPacket Lower bound of packets.
+	 * @param minSecs Lower bound of seconds.
 	 * @param rate Lower bound rate of attack (packets per second) for each source address.
 	 * @return Query
 	 */
-	private String getDosVictimsQuery(String tableName, int rate) {
+	private String getDosVictimsQuery(String tableName, int minPacket, int minSecs, int rate) {
+		return "SELECT "
+				+ "SrcAddress, "
+				+ "packetCount, "
+				+ "totalSeconds, "
+				+ "rate "
+				+ "FROM (" + getAllDosVictimsQuery(tableName) + ") AS temp "
+				+ "WHERE "
+					+ "packetCount >= " + minPacket + " AND "
+					+ "totalSeconds >= " + minSecs + " AND "
+					+ "rate >= " + rate;
+	}
+	
+	/**
+	 * Query to be used to get a list of DOS victims and the amount of attack packets.
+	 * 
+	 * @param tableName Table name where to get the list from
+	 * @param data.rate Lower bound rate of attack (packets per second) for each source address.
+	 * @return Query
+	 */
+	private String getAllDosVictimsQuery(String tableName) {
 		return "SELECT "
 				+ "SrcAddress, "
 				+ "COUNT(*) AS packetCount, "
 				+ "(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS totalSeconds, "
 				+ "COUNT(*)/(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS rate "
 				+ "FROM " + tableName + " "
-				+ "GROUP BY SrcAddress "
-				+ "HAVING rate > " + rate;
+				+ "GROUP BY SrcAddress ";
 	}
 	
 	/**
@@ -475,13 +496,13 @@ public class DbStore {
 	 * @param rate Lower bound rate of attack (packets per second) for each source address.
 	 * @return Query
 	 */
-	private String getAttackRateQuery(String tableName, int rate) {
+	private String getAttackRateQuery(String tableName, int minPacket, int minSecs, int rate) {
 		return "SELECT "
 				+ "TIMESTAMP, "
 				+ "COUNT(*) AS packetPerSecond "
 				+ "FROM " + tableName + " "
 				+ "WHERE EXISTS ("
-				+ getDosVictimsQuery(tableName, rate) + ") "
+				+ getDosVictimsQuery(tableName, minPacket, minSecs, rate) + ") "
 				+ "GROUP BY TIMESTAMP";
 	}
 	
@@ -500,9 +521,9 @@ public class DbStore {
 	 * @param tableName Table name where to get the list from.
 	 * @return List of attack rate
 	 */
-	public ArrayList<RateContent> getAttackRate(String tableName) {
+	public ArrayList<RateContent> getAttackRate(String tableName, int minPacket, int minSecs, int rate) {
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
-		String query = getAttackRateQuery(tableName, 20);
+		String query = getAttackRateQuery(tableName, minPacket, minSecs, rate);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, user, password);
@@ -541,9 +562,9 @@ public class DbStore {
 	 * @param tableName Table name where to get the list from.
 	 * @return List of DOS victims and the amount of attack packets.
 	 */
-	public ArrayList<RowContent> getDosVictims(String tableName) {
+	public ArrayList<RowContent> getDosVictims(String tableName, int minPacket, int minSecs, int rate) {
 		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
-		String query = getDosVictimsQuery(tableName, 20);
+		String query = getDosVictimsQuery(tableName, minPacket, minSecs, rate);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, user, password);

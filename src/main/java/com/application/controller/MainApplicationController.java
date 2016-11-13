@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -22,6 +24,8 @@ import com.database.RateContent;
 import com.database.RowContent;
 
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -142,12 +146,22 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		File f = fileChooser.showOpenDialog(fileStage);
 		System.out.println("Is file in DB " + PcapAnalyzer.isInDb(f));
 		
-		startProgressIndicator();
+		AtomicInteger progress = new AtomicInteger(0);
+		AtomicReference<String> progressTitle = new AtomicReference<String>();
+        startProgressIndicator(progressTitle, progress);
+        
 		Task<Void> task = new Task<Void>() {
             @Override
             protected Void call() throws Exception {
             	PcapAnalyzer pa = new PcapAnalyzer(f);
-            	pa.processPcapFile();
+            	progress.set(0);
+            	progressTitle.set("Splitting Pcap File...");
+				pa.splitFile(progress);
+				progress.set(0);
+				progressTitle.set("Processing Pcap File...");
+				pa.processFile(progress);
+				pa.setStats();
+				pa.cleanUp();
 				return null;
             }
 		};
@@ -187,15 +201,27 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		
 		// Load data
 		if(dbName != null) {
-			startProgressIndicator();
+			AtomicReference<String> progressTitle = new AtomicReference<String>();
+			progressTitle.set("Processing information from database...");
+			startProgressIndicator(progressTitle, null);
 			
 			Task<Void> task = new Task<Void>() {
 	            @Override
 	            protected Void call() throws Exception {
 	            	pcapAnalyzer = new PcapAnalyzer();
-	    			
-	    			pcapAnalyzer.loadProcessedData(dbName);
-	    			
+	            	PropertiesData propData =  new PropertiesData();
+	    			/*
+	    			pcapAnalyzer.loadProcessedData(
+	    					dbName, 
+	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_PACKETS)),
+	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_TIME)),
+	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_RATE)));
+	    			*/
+	            	pcapAnalyzer.loadProcessedData(
+	    					dbName, 
+	    					1,
+	    					1,
+	    					1);
 	    			ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
 	    			tcpFloodData = FXCollections.observableArrayList(tcpVictims);
 	    			
@@ -226,7 +252,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	        Thread th = new Thread(task);
 	        th.setDaemon(true);
 	        th.start();
-	        //Platform.runLater(task);
 		}
 	}
 
@@ -520,18 +545,50 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	/**
 	 * Starts indicators for long tasks
 	 */
-	private void startProgressIndicator() {
-		progressLabel.setText("Processing please wait...   ");
+	private void startProgressIndicator(AtomicReference<String> progressTitle, AtomicInteger progress) {
 		mainBorderPane.getScene().setCursor(Cursor.WAIT);
-    	progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+		if (progress == null){
+			progressLabel.setText(progressTitle.get());
+			progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+		} else { 
+			Task<Void> task = new Task<Void>() {
+			    @Override public Void call() {
+			    	int value = 0;
+			    	String message = "";
+			    	while (value >= 0) { // exits when we feed -1
+			    		try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+			    		int newVal = progress.get();
+			    		String newMessage = progressTitle.get();
+			    		if (!message.equals(newMessage)) {
+			    			message = newMessage;
+			    			updateMessage(message);
+			    		}
+			    		if (value != newVal) {
+			    			value = newVal;
+			    			updateProgress(value, 100);
+			    		}
+			    	}
+			        return null;
+			    }
+			};
+			progressBar.progressProperty().bind(task.progressProperty());
+			progressLabel.textProperty().bind(task.messageProperty());
+			new Thread(task).start();
+		}
 	}
 	
 	/**
 	 * Stops indicators for long tasks
 	 */
 	private void stopProgressIndicator() {
-		progressLabel.setText("");
-		progressBar.setProgress(0);
 		mainBorderPane.getScene().setCursor(Cursor.DEFAULT);
+		progressBar.progressProperty().unbind();
+		progressLabel.textProperty().unbind();
+		progressBar.setProgress(0);
+		progressLabel.setText("");
 	}
 }
