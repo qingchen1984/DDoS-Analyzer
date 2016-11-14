@@ -30,10 +30,11 @@ public class PropertiesData {
 	public PropertiesData() {
 		prop = new Properties();
 		try {
-			output = new FileOutputStream(fileLocation);
+			//
 			input = new FileInputStream(fileLocation);
 			// load a properties file
 			prop.load(input);
+			//prop..getClass().
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -48,7 +49,7 @@ public class PropertiesData {
 	 * @param propValue
 	 */
 	public void setProperty(String propName, String propValue) {
-		prop.setProperty(propName, propValue);
+		prop.replace(propName, propValue);
 	}
 	
 	/**
@@ -58,6 +59,7 @@ public class PropertiesData {
 	 */
 	public boolean saveProperties() {
 		try {
+			output = new FileOutputStream(fileLocation);
 			prop.store(output, null);
 		} catch (IOException e) {
 			return false;

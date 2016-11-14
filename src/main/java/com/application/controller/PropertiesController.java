@@ -3,13 +3,7 @@
  */
 package com.application.controller;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URL;
-import java.util.Properties;
 import java.util.ResourceBundle;
 
 import javafx.event.ActionEvent;
@@ -40,9 +34,6 @@ public class PropertiesController implements Initializable {
 	public void initialize(URL location, ResourceBundle resources) {
 		propData = new PropertiesData();
 		// get the property value and display it
-		System.out.println("Value of property " + propData.getProperty(PropertiesData.MINIMUM_PACKETS));
-		System.out.println("Value of property " + propData.getProperty(PropertiesData.MINIMUM_TIME));
-		System.out.println("Value of property " + propData.getProperty(PropertiesData.MINIMUM_RATE));
 		packets.setText(propData.getProperty(PropertiesData.MINIMUM_PACKETS));
 		time.setText(propData.getProperty(PropertiesData.MINIMUM_TIME));
 		rate.setText(propData.getProperty(PropertiesData.MINIMUM_RATE));
@@ -54,7 +45,6 @@ public class PropertiesController implements Initializable {
 	 * @param event
 	 */
 	public void saveInfo(ActionEvent event) {
-		
 		// set the properties value
 		propData.setProperty(PropertiesData.MINIMUM_PACKETS, packets.getText());
 		propData.setProperty(PropertiesData.MINIMUM_TIME, time.getText());
@@ -62,7 +52,6 @@ public class PropertiesController implements Initializable {
 
 		// save properties 
 		propData.saveProperties();
-		propData.closeConnections();
 		
 		closeWindow(event);
 	}
@@ -73,6 +62,7 @@ public class PropertiesController implements Initializable {
 	 * @param event
 	 */
 	public void closeWindow(ActionEvent event) {
+		propData.closeConnections();
 		Node source = (Node) event.getSource();
 		Stage stage = (Stage) source.getScene().getWindow();
 	    stage.close();

@@ -210,18 +210,12 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	            protected Void call() throws Exception {
 	            	pcapAnalyzer = new PcapAnalyzer();
 	            	PropertiesData propData =  new PropertiesData();
-	    			/*
 	    			pcapAnalyzer.loadProcessedData(
 	    					dbName, 
 	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_PACKETS)),
 	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_TIME)),
 	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_RATE)));
-	    			*/
-	            	pcapAnalyzer.loadProcessedData(
-	    					dbName, 
-	    					1,
-	    					1,
-	    					1);
+	    			propData.closeConnections();
 	    			ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
 	    			tcpFloodData = FXCollections.observableArrayList(tcpVictims);
 	    			

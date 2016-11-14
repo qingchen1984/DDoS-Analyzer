@@ -226,11 +226,11 @@ public class PcapAnalyzer {
 					}
 					double overallProgress = 0.0;
 					for (AtomicInteger threadProgress : progressArr) {
-						double individualVal = (double) threadProgress.get();
-						individualVal = individualVal/100.0;
-						overallProgress = overallProgress + individualVal;
+						double individualVal = (double) threadProgress.get(); // 0-100
+						individualVal = individualVal/100.0; // 0-1.0
+						overallProgress = overallProgress + individualVal; //up to arrSize
 					}
-					int newVal = (int) ((overallProgress / arraySize) * 100);
+					int newVal = (int) (overallProgress / arraySize * 100); //0-100
 					if (newVal != current) {
 						current = newVal;
 						progress.set(current);
@@ -253,7 +253,7 @@ public class PcapAnalyzer {
 		}
 		long endTime = System.currentTimeMillis();
 		processTimeInMillis = processTimeInMillis + (endTime - startTime);
-		progress.set(100);
+		progress.set(100); // if we haven't done so, set it to completed.
 	}
 
 	/**
