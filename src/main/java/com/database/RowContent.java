@@ -33,7 +33,7 @@ public class RowContent {
 	 * @param country Country of srcAddress
 	 * @param city City of srcAddress
 	 */
-	RowContent(byte[] srcByteArr, String srcAddress, long numOfPackets, long timeInSecs, 
+	RowContent(byte[] srcByteArr, String srcAddress, long numOfPackets, long timeInSecs, long attackRate,
 			String country, String city, double latitude, double longitude) {
 		this.srcAddressArr = srcByteArr;
 		this.srcAddress = srcAddress;
@@ -41,13 +41,14 @@ public class RowContent {
 		this.timeInSecs = timeInSecs;
 		this.country = country;
 		this.city = city;
-		if (timeInSecs > 0 ) {
-			attackRate = numOfPackets / timeInSecs;
-		} else {
-			attackRate = numOfPackets;
-		}
+		this.attackRate = attackRate;
 		this.latitude = latitude;
 		this.longitude = longitude;
+	}
+	
+	RowContent(String country, int numOfCountries, int packetCount, int totalSeconds) {
+		this.country = country;
+		
 	}
 
 	/**

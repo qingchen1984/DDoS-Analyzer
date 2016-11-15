@@ -12,18 +12,15 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.maxmind.geoip2.DatabaseReader;
-import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.Location;
 import com.mysql.cj.jdbc.DatabaseMetaData;
-
-import org.apache.logging.log4j.LogManager;
 
 /**
  * Manages all functions related to the database.
@@ -32,6 +29,7 @@ import org.apache.logging.log4j.LogManager;
  *
  */
 public class DbStore {
+	private final String COUNTRY_STAT_TABLE_NAME = "countryStats";
 	public static final String TCP_FLOODING_TABLE_NAME = "tcpFlood";
 	public static final String UDP_FLOODING_TABLE_NAME = "udpFlood";
 	public static final String ICMP_FLOODING_TABLE_NAME = "icmpFlood";
@@ -267,6 +265,7 @@ public class DbStore {
 		    createTable(UDP_FLOODING_TABLE_NAME, dbName, connection);
 		    createTable(ICMP_FLOODING_TABLE_NAME, dbName, connection);
 		    createSummaryTable(dbName, connection);
+		    createCountryStatTable(COUNTRY_STAT_TABLE_NAME, dbName, connection);
 		    clearDbTable(dbName, connection);
 		}
 		catch (SQLException e) {
@@ -283,11 +282,35 @@ public class DbStore {
 	}
 	
 	/**
+	 * Create a table where the Attack statistics per country will be saved.
+	 * 
+	 * @param tableName Name for table
+	 * @param dbName DB name where to create the tables.
+	 * @param connection Connection to be used.
+	 * @throws SQLException
+	 */
+	private void createCountryStatTable(String tableName, String dbName, Connection connection) throws SQLException {
+	    String sqlCreate = "CREATE TABLE IF NOT EXISTS " + dbName + "." + tableName
+	            + "  (Id BIGINT(20) NOT NULL AUTO_INCREMENT,"
+	            + "   SrcAddress VARBINARY(16),"
+	            + "   packetCount BIGINT,"
+	            + "   totalSeconds BIGINT,"
+	            + "   rate BIGINT,"
+	            + "   Country TEXT,"
+	            + "   City TEXT,"
+	            + "   PRIMARY KEY (`Id`))";
+
+	    Statement stmt = connection.createStatement();
+	    stmt.execute(sqlCreate);
+	    stmt.close();
+	}
+	
+	/**
 	 * Create a table using the given name and connection. 
 	 * 
 	 * @param tableName Name for table
 	 * @param dbName DB name where to create the tables.
-	 * @param connection Connection to be used
+	 * @param connection Connection to be used.
 	 * @throws SQLException
 	 */
 	private void createTable(String tableName, String dbName, Connection connection) throws SQLException {
@@ -451,6 +474,34 @@ public class DbStore {
 	}
 	
 	/**
+	 * Gets the insert query for the table that holds Country stats.
+	 * 
+	 * @param tableName Table name for the insert query.
+	 * @return
+	 */
+	private String getInsertCountryStatsQuery(String tableName) {
+		return "INSERT INTO " + tableName 
+				+ "(SrcAddress,packetCount,totalSeconds,rate,Country,City) "
+    		+ "VALUES(?,?,?,?,?,?)";
+	}
+	
+	/**
+	 * Gets the select query for the table that holds Country stats.
+	 * 
+	 * @param tableName Table name for the insert query.
+	 * @return
+	 */
+	private String getSelectCountryStatsQuery(String tableName) {
+		return "SELECT "
+				+ "Country, "
+				+ "COUNT(*) AS numOfCountries, "
+				+ "SUM(packetCount) AS packetCount, "
+				+ "SUM(totalSeconds) AS totalSeconds "
+				+ "FROM " + tableName 
+				+ " GROUP BY Country";
+	}
+	
+	/**
 	 * Query to be used to get a list of DOS victims and the amount of attack packets.
 	 * 
 	 * @param tableName Table name where to get the list from.
@@ -506,6 +557,11 @@ public class DbStore {
 				+ "GROUP BY TIMESTAMP";
 	}
 	
+	/**
+	 * Query to 
+	 * @param tableName
+	 * @return
+	 */
 	private String getAttackRateForAddressQuery(String tableName) {
 		return "SELECT "
 				+ "TIMESTAMP, "
@@ -540,7 +596,6 @@ public class DbStore {
 	
 	public ArrayList<RateContent> getAttackRate(String tableName, byte[] address) {
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
-		String query = getAttackRateForAddressQuery(tableName);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, user, password);
@@ -563,12 +618,16 @@ public class DbStore {
 	 * @return List of DOS victims and the amount of attack packets.
 	 */
 	public ArrayList<RowContent> getDosVictims(String tableName, int minPacket, int minSecs, int rate) {
+		logger.info("Processing list of DOS victims for " + tableName + " including place of origin");
+		long startTime = System.currentTimeMillis();
 		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
 		String query = getDosVictimsQuery(tableName, minPacket, minSecs, rate);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, user, password);
+			PreparedStatement ps = connection.prepareStatement(getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
 			Statement  statement = connection.createStatement();
+			
 			ResultSet rs = statement.executeQuery(query);
 			File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
 			DatabaseReader reader = null;
@@ -583,6 +642,7 @@ public class DbStore {
 			double latitude;
 			double longitude;
 			Location location;
+			logger.info("Iterating over result list for " + tableName + " to add contry/city of origin.");
 			while (rs.next()) {
 				InetAddress ip = null;
 				String address = "Unknown";
@@ -607,16 +667,33 @@ public class DbStore {
 					location = response.getLocation();
 					latitude = location.getLatitude();
 					longitude = location.getLongitude();
-				} catch (IOException | GeoIp2Exception e) {
+				} catch (Exception e) {
 					logger.error("Error encountered parsing country/city/location ", e.getMessage());
+				}
+				int packetCount = rs.getInt("packetCount");
+				int totalSeconds = rs.getInt("totalSeconds");
+				long attackRate = 0;
+				if (totalSeconds > 0 ) {
+					attackRate = packetCount / packetCount;
+				} else {
+					attackRate = packetCount;
 				}
 				resultArr.add(new RowContent(
 						srcByteArr,
 						address,
-						rs.getLong("packetCount"),
-						rs.getLong("totalSeconds"),
+						packetCount,
+						totalSeconds,
+						attackRate,
 						country, city, latitude, longitude));
+				ps.setBytes(1, srcByteArr);
+				ps.setInt(2, packetCount);
+				ps.setInt(3, totalSeconds);
+				ps.setInt(4, (int) attackRate);
+				ps.setString(5, country);
+				ps.setString(6, city);
+				ps.addBatch();
 			}
+			ps.executeBatch();
 		} catch (SQLException e) {
 			logger.error("Database failed", e);
 			return null;
@@ -629,6 +706,50 @@ public class DbStore {
 				}
 			}
 		}
+		long endTime = System.currentTimeMillis();
+		logger.info("Completed processing DOS victims for " + tableName + "  including place of origin in DB in " + (endTime - startTime)/1000 + " seconds.");
+		return resultArr;
+	}
+	
+	/**
+	 * Gets a list of country victims and the time and amount of attack packets.
+	 * Can only be called after getDosVictims().
+	 * 
+	 * @param tableName Table name where to get the list from
+	 * @return  List of country victims and the amount of attack packets.
+	 */
+	public ArrayList<CountryContent> getCountryVictims(String tableName) {
+		logger.info("Processing list of Country victims for " + tableName);
+		long startTime = System.currentTimeMillis();
+		ArrayList<CountryContent> resultArr = new ArrayList<CountryContent>();
+		
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(url, user, password);
+			Statement  statement = connection.createStatement();
+			
+			ResultSet rs = statement.executeQuery(getSelectCountryStatsQuery(tableName));
+			while (rs.next()) {
+				resultArr.add(new CountryContent(
+						rs.getString("Country"),
+						rs.getInt("packetCount"),
+						rs.getInt("totalSeconds")));
+			}
+			
+		} catch (SQLException e) {
+			logger.error("Database failed", e);
+			return null;
+		} finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
+		}
+		long endTime = System.currentTimeMillis();
+		logger.info("Completed processing Country victims for " + tableName + " in " + (endTime - startTime)/1000 + " seconds.");
 		return resultArr;
 	}
 	
