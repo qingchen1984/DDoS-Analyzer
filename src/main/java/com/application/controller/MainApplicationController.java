@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.text.DateFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -12,6 +13,7 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,6 +22,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import com.analyzer.PcapAnalyzer;
+import com.database.CountryContent;
 import com.database.RateContent;
 import com.database.RowContent;
 
@@ -43,6 +46,7 @@ import javafx.scene.chart.Axis;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.XYChart.Data;
 import javafx.scene.control.Button;
@@ -53,10 +57,12 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -93,12 +99,17 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	@FXML private TableColumn<RowContent, String> cityColumn;
 	@FXML private GoogleMapView mapView;
 	@FXML private LineChart<String, Number> lineChartView;
+	@FXML private PieChart pieChartView;
 	@FXML private ProgressBar progressBar;
 	@FXML private Label progressLabel;
+	@FXML private Label pieCaption;
 	private GoogleMap map;
 	private ObservableList<RowContent> tcpFloodData;
 	private ObservableList<RowContent> udpFloodData;
 	private ObservableList<RowContent> icmpFloodData;
+	private ObservableList<PieChart.Data> tcpFloodCountryData;
+	private ObservableList<PieChart.Data> udpFloodCountryData;
+	private ObservableList<PieChart.Data> icmpFloodCountryData;
 	private ObservableList<XYChart.Data<String, Number>> tcpAttackRate;
 	private ObservableList<XYChart.Data<String, Number>> udpAttackRate;
 	private ObservableList<XYChart.Data<String, Number>> icmpAttackRate;
@@ -144,6 +155,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		fileStage.initModality(Modality.WINDOW_MODAL);
 		fileStage.initOwner(mainBorderPane.getScene().getWindow());
 		File f = fileChooser.showOpenDialog(fileStage);
+		if(f == null) return;
 		System.out.println("Is file in DB " + PcapAnalyzer.isInDb(f));
 		
 		AtomicInteger progress = new AtomicInteger(0);
@@ -199,54 +211,61 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			e.printStackTrace();
 		}
 		
+		if(dbName == null) return;
+		
 		// Load data
-		if(dbName != null) {
-			AtomicReference<String> progressTitle = new AtomicReference<String>();
-			progressTitle.set("Processing information from database...");
-			startProgressIndicator(progressTitle, null);
-			
-			Task<Void> task = new Task<Void>() {
-	            @Override
-	            protected Void call() throws Exception {
-	            	pcapAnalyzer = new PcapAnalyzer();
-	            	PropertiesData propData =  new PropertiesData();
-	    			pcapAnalyzer.loadProcessedData(
-	    					dbName, 
-	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_PACKETS)),
-	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_TIME)),
-	    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_RATE)));
-	    			propData.closeConnections();
-	    			ArrayList<RowContent> tcpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
-	    			tcpFloodData = FXCollections.observableArrayList(tcpVictims);
-	    			
-	    			ArrayList<RowContent> udpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
-	    			udpFloodData = FXCollections.observableArrayList(udpVictims);
-	    			
-	    			ArrayList<RowContent> icmpVictims = pcapAnalyzer.getDosVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
-	    			icmpFloodData = FXCollections.observableArrayList(icmpVictims);
-	    			
-	    			ArrayList<RateContent> tcpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.TCP_FLOODING_TABLE_NAME);
-	    			tcpAttackRate = simplifyPlotPoints(tcpRate);
-	    			
-	    			ArrayList<RateContent> udppRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.UDP_FLOODING_TABLE_NAME);
-	    			udpAttackRate = simplifyPlotPoints(udppRate);
-	    					
-	    			ArrayList<RateContent> icmpRate = pcapAnalyzer.getAttackRate(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME);
-	    			icmpAttackRate = simplifyPlotPoints(icmpRate);
-	    			
-	    			showOverviewData();
-	    			return null;
-	            }
-	        };
-	        
-	        task.setOnSucceeded(e -> {
-    			loadOverviewData(pcapAnalyzer);
-    			stopProgressIndicator();
-	        });
-	        Thread th = new Thread(task);
-	        th.setDaemon(true);
-	        th.start();
-		}
+		AtomicReference<String> progressTitle = new AtomicReference<String>();
+		progressTitle.set("Processing information from database...");
+		startProgressIndicator(progressTitle, null);
+		
+		Task<Void> task = new Task<Void>() {
+            @Override
+            protected Void call() throws Exception {
+            	pcapAnalyzer = new PcapAnalyzer();
+            	PropertiesData propData =  new PropertiesData();
+    			pcapAnalyzer.loadProcessedData(
+    					dbName, 
+    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_PACKETS)),
+    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_TIME)),
+    					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_RATE)));
+    			propData.closeConnections();
+    			
+    			//Gets the data that will be used for the DOS attack table
+    			tcpFloodData = FXCollections.observableArrayList(
+    					pcapAnalyzer.getDosVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME));
+    			udpFloodData = FXCollections.observableArrayList(
+    					pcapAnalyzer.getDosVictims(PcapAnalyzer.UDP_FLOODING_TABLE_NAME));
+    			icmpFloodData = FXCollections.observableArrayList(
+    					pcapAnalyzer.getDosVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME));
+
+    			// Gets and formats the data that will be used for the overall attack rate line chart
+    			tcpAttackRate = simplifyPlotPoints(
+    					pcapAnalyzer.getAttackRate(PcapAnalyzer.TCP_FLOODING_TABLE_NAME));
+    			udpAttackRate = simplifyPlotPoints(
+    					pcapAnalyzer.getAttackRate(PcapAnalyzer.UDP_FLOODING_TABLE_NAME));
+    			icmpAttackRate = simplifyPlotPoints(
+    					pcapAnalyzer.getAttackRate(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME));
+    			
+    			// Gets and formats the data that will be used for the country attacks pie chart
+    			tcpFloodCountryData = getPieChartData(
+    					pcapAnalyzer.getCountryVictims(PcapAnalyzer.TCP_FLOODING_TABLE_NAME));
+    			udpFloodCountryData = getPieChartData(
+    					pcapAnalyzer.getCountryVictims(PcapAnalyzer.UDP_FLOODING_TABLE_NAME));
+    			icmpFloodCountryData = getPieChartData(
+    					pcapAnalyzer.getCountryVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME));
+    			
+    			showOverviewData();
+    			return null;
+            }
+        };
+        
+        task.setOnSucceeded(e -> {
+			loadOverviewData(pcapAnalyzer);
+			stopProgressIndicator();
+        });
+        Thread th = new Thread(task);
+        th.setDaemon(true);
+        th.start();
 	}
 
 	/**
@@ -404,6 +423,11 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		resultStack.lookup(id).setVisible(true);
 	}
 	
+	/**
+	 * Shows the pane containing the loaded map
+	 * 
+	 * @param event
+	 */
 	public void showMap(ActionEvent event) {
 		Button srcButton = (Button) event.getSource();
 		String id = srcButton.getId();
@@ -419,14 +443,89 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		showResultView("#map_pane");
 	}
 	
+	/**
+	 * Shows the pane containing the loaded line chart
+	 * 
+	 * @param event
+	 */
 	public void showDosRate(ActionEvent event) {
 		setLineChartData(null, null, null);
-		//lineChartView.autosize();
 		showResultView("#line_chart_pane");
+	}
+	
+	/**
+	 * Shows the pane containing the loaded country pie chart.
+	 * 
+	 * @param event
+	 */
+	public void showCountryPieChart(ActionEvent event) {
+		String id = ((Button) event.getSource()).getId();
+		pieChartView.setTitle("No content in Chart");
+		pieChartView.setData(FXCollections.observableArrayList());
+		if(id.equals("tcp_flood_pie_chart_button")) {
+			if (tcpFloodCountryData != null && tcpFloodCountryData.size() > 0) {
+				pieChartView.setTitle("Countries affected by amount of TCP packets");
+				pieChartView.setData(tcpFloodCountryData);
+			}
+		} else if(id.equals("udp_flood_pie_chart_button")) {
+			if (udpFloodCountryData != null && udpFloodCountryData.size() > 0) {
+				pieChartView.setTitle("Countries affected by amount of UDP packets");
+				pieChartView.setData(udpFloodCountryData);
+			}
+		} else if(id.equals("icmp_flood_pie_chart_button")) {
+			if (icmpFloodCountryData != null && icmpFloodCountryData.size() > 0) {
+				pieChartView.setTitle("Countries affected by amount of ICMP packets");
+				pieChartView.setData(icmpFloodCountryData);
+			}
+		} else {
+			// source button not recognized
+			System.out.println("Button id not recognized: " + id);
+			return;
+		}
+		
+		// Adds mouse events for each pie slice.
+		for (final PieChart.Data data : pieChartView.getData()) {
+		    data.getNode().setOnMousePressed(e -> {
+		    	pieCaption.setVisible(true);
+		    	pieCaption.setLayoutX(e.getSceneY());
+		    	pieCaption.setLayoutY(e.getSceneY());
+		    	String formattedNumber = NumberFormat.getIntegerInstance().format((int) data.getPieValue());
+		    	pieCaption.setText(formattedNumber + " packets");
+		    });
+		    data.getNode().setOnMouseEntered(e -> {
+		    	pieChartView.getScene().setCursor(Cursor.HAND);
+		    });
+		    data.getNode().setOnMouseExited(e -> {
+		    	pieChartView.getScene().setCursor(Cursor.DEFAULT);
+		    	pieCaption.setVisible(false);
+		    });
+		}
+
+		showResultView("#pie_chart_pane");
+	}
+	
+	/**
+	 * Gets the data that will be displayed in the affected countries pie chart.
+	 * 
+	 * @param countryData list containing countries and packets affected.
+	 * @return data processed to be used in a pie chart.
+	 */
+	private ObservableList<PieChart.Data> getPieChartData(ArrayList<CountryContent> countryData) {
+		ObservableList<PieChart.Data> response = FXCollections.observableArrayList();
+		Iterator<CountryContent> i = countryData.iterator();
+		while(i.hasNext()) {
+			CountryContent content = i.next();
+			response.add(new PieChart.Data(content.getCountry(), content.getPacketCount()));
+		}
+	    return response;
 	}
 
 	/**
+	 * Loads the line chart containing the attack rate over time.
 	 * 
+	 * @param address Address where to obtain the attack trend from. If null, then all addresses/DOS-attack-types
+	 * @param addressString Ip address of displayed data. Used only when address != null
+	 * @param tableName Table name where to obtain the data from. Used only when address != null
 	 */
 	private void setLineChartData(byte[] address, String addressString,  String tableName) {
 		ObservableList<XYChart.Series<String, Number>> series = FXCollections.observableArrayList();

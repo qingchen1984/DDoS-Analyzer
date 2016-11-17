@@ -12,6 +12,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.database.CountryContent;
 import com.database.DbStore;
 import com.database.RateContent;
 import com.database.RowContent;
@@ -42,6 +43,7 @@ public class PcapAnalyzer {
 	private HashMap<String,Object> statistics = new HashMap<String,Object>();
 	private HashMap<String,ArrayList<RateContent>> rateStatistics = new HashMap<String,ArrayList<RateContent>>();
 	private HashMap<String,ArrayList<RowContent>> dosStatistics = new HashMap<String,ArrayList<RowContent>>();
+	private HashMap<String,ArrayList<CountryContent>> countryStatistics = new HashMap<String,ArrayList<CountryContent>>();
 	private static final int PACKET_COUNT_MAX = 5000000; //5000000 ; 10000000
 	private Logger logger;
 	private DbStore dbStore;
@@ -305,6 +307,12 @@ public class PcapAnalyzer {
 		rateStatistics.put(ICMP_FLOODING_TABLE_NAME, 
 				dbStore.getAttackRate(DbStore.ICMP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
 		
+		countryStatistics.put(TCP_FLOODING_TABLE_NAME, 
+				dbStore.getCountryVictims(DbStore.TCP_FLOODING_TABLE_NAME));
+		countryStatistics.put(UDP_FLOODING_TABLE_NAME, 
+				dbStore.getCountryVictims(DbStore.UDP_FLOODING_TABLE_NAME));
+		countryStatistics.put(ICMP_FLOODING_TABLE_NAME, 
+				dbStore.getCountryVictims(DbStore.ICMP_FLOODING_TABLE_NAME));
 	}
 	
 	/**
@@ -325,6 +333,16 @@ public class PcapAnalyzer {
 	 */
 	public ArrayList<RowContent> getDosVictims(String key) {
 		return dosStatistics.get(key);
+	}
+	
+	/**
+	 * Gets country victims previously processed by loadProcessedData.
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public ArrayList<CountryContent> getCountryVictims(String key) {
+		return countryStatistics.get(key);
 	}
 	
 	/**

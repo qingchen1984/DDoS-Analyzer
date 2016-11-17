@@ -71,7 +71,12 @@ public class DbStore {
         urlNoDb = "jdbc:mysql://localhost:3306/?autoReconnect=true&useSSL=false";
         user = "root";
         password = "password";
-        if (createDB) setupDB(dbName);
+        if (createDB) {
+        	setupDB(dbName);
+        } else {
+        	if(!dbName.isEmpty() && !dbName.equals("") && dbName != null) clearStatsTable();
+        }
+        
 	}
 	
 	/**
@@ -245,7 +250,39 @@ public class DbStore {
 		st.executeUpdate("TRUNCATE " + dbName + "." + TCP_FLOODING_TABLE_NAME);
 		st.executeUpdate("TRUNCATE " + dbName + "." + UDP_FLOODING_TABLE_NAME);
 		st.executeUpdate("TRUNCATE " + dbName + "." + ICMP_FLOODING_TABLE_NAME);
+		st.executeUpdate("TRUNCATE " + dbName + "." + COUNTRY_STAT_TABLE_NAME);
 		st.close();
+	}
+	
+	/**
+	 * Clears the Statistics table used for parsing DOS Victims.
+	 */
+	private void clearStatsTable() {
+		Connection con = null;
+		Statement  st = null;
+		try {
+			con = DriverManager.getConnection(url, user, password);
+			st = con.createStatement();
+			st.executeUpdate("TRUNCATE " + COUNTRY_STAT_TABLE_NAME);
+		} catch (SQLException e) {
+			logger.error("Database failed to truncate " + COUNTRY_STAT_TABLE_NAME, e.getMessage());
+		} finally {
+			if (st != null) {
+				try {
+					st.close();
+				} catch (SQLException e) {
+					logger.error("TRUNCATE statement failed while closing", e.getMessage());
+				}
+			}
+			if (con != null) {
+				try {
+					con.close();
+				} catch (SQLException e) {
+					logger.error("Database close connection failed", e.getMessage());
+				}
+			}
+		}
+		
 	}
 	
 	/**
@@ -298,6 +335,7 @@ public class DbStore {
 	            + "   rate BIGINT,"
 	            + "   Country TEXT,"
 	            + "   City TEXT,"
+	            + "   FloodType TEXT,"
 	            + "   PRIMARY KEY (`Id`))";
 
 	    Statement stmt = connection.createStatement();
@@ -481,8 +519,8 @@ public class DbStore {
 	 */
 	private String getInsertCountryStatsQuery(String tableName) {
 		return "INSERT INTO " + tableName 
-				+ "(SrcAddress,packetCount,totalSeconds,rate,Country,City) "
-    		+ "VALUES(?,?,?,?,?,?)";
+				+ "(SrcAddress,packetCount,totalSeconds,rate,Country,City,FloodType) "
+    		+ "VALUES(?,?,?,?,?,?,?)";
 	}
 	
 	/**
@@ -491,13 +529,14 @@ public class DbStore {
 	 * @param tableName Table name for the insert query.
 	 * @return
 	 */
-	private String getSelectCountryStatsQuery(String tableName) {
+	private String getSelectCountryStatsQuery(String tableName, String floodTable) {
 		return "SELECT "
-				+ "Country, "
-				+ "COUNT(*) AS numOfCountries, "
-				+ "SUM(packetCount) AS packetCount, "
-				+ "SUM(totalSeconds) AS totalSeconds "
-				+ "FROM " + tableName 
+				+ " Country,"
+				+ " COUNT(*) AS numOfCountries,"
+				+ " SUM(packetCount) AS packetCount,"
+				+ " SUM(totalSeconds) AS totalSeconds"
+				+ " FROM " + tableName 
+				+ " WHERE FloodType='" + floodTable + "'"
 				+ " GROUP BY Country";
 	}
 	
@@ -625,9 +664,9 @@ public class DbStore {
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, user, password);
-			PreparedStatement ps = connection.prepareStatement(getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
-			Statement  statement = connection.createStatement();
 			
+			Statement  statement = connection.createStatement();
+			PreparedStatement ps = connection.prepareStatement(getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
 			ResultSet rs = statement.executeQuery(query);
 			File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
 			DatabaseReader reader = null;
@@ -642,7 +681,6 @@ public class DbStore {
 			double latitude;
 			double longitude;
 			Location location;
-			logger.info("Iterating over result list for " + tableName + " to add contry/city of origin.");
 			while (rs.next()) {
 				InetAddress ip = null;
 				String address = "Unknown";
@@ -672,9 +710,9 @@ public class DbStore {
 				}
 				int packetCount = rs.getInt("packetCount");
 				int totalSeconds = rs.getInt("totalSeconds");
-				long attackRate = 0;
+				int attackRate = 0;
 				if (totalSeconds > 0 ) {
-					attackRate = packetCount / packetCount;
+					attackRate = (int) (((double) packetCount) / totalSeconds);
 				} else {
 					attackRate = packetCount;
 				}
@@ -688,9 +726,10 @@ public class DbStore {
 				ps.setBytes(1, srcByteArr);
 				ps.setInt(2, packetCount);
 				ps.setInt(3, totalSeconds);
-				ps.setInt(4, (int) attackRate);
+				ps.setInt(4, attackRate);
 				ps.setString(5, country);
 				ps.setString(6, city);
+				ps.setString(7, tableName);
 				ps.addBatch();
 			}
 			ps.executeBatch();
@@ -727,8 +766,7 @@ public class DbStore {
 		try {
 			connection = DriverManager.getConnection(url, user, password);
 			Statement  statement = connection.createStatement();
-			
-			ResultSet rs = statement.executeQuery(getSelectCountryStatsQuery(tableName));
+			ResultSet rs = statement.executeQuery(getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
 			while (rs.next()) {
 				resultArr.add(new CountryContent(
 						rs.getString("Country"),
