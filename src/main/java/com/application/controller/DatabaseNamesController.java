@@ -28,7 +28,7 @@ public class DatabaseNamesController implements Initializable {
 	public void initialize(URL arg0, ResourceBundle arg1) {
 		PcapAnalyzer pcapAnalyzer = new PcapAnalyzer();
 		//load with name of pre-processed files
-		List<String> values = Arrays.asList(pcapAnalyzer.getDbNames());
+		List<String> values = Arrays.asList(PcapAnalyzer.getDbNames());
         listView.setItems(FXCollections.observableList(values));
 	}
 	

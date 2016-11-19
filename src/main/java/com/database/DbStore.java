@@ -1,10 +1,12 @@
 package com.database;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -20,7 +22,6 @@ import org.apache.logging.log4j.Logger;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.Location;
-import com.mysql.cj.jdbc.DatabaseMetaData;
 
 /**
  * Manages all functions related to the database.
@@ -49,10 +50,11 @@ public class DbStore {
 	public static final String FILE_NAME = "fileName";
 	public static final String FILE_SIZE = "fileSize";
 	public static final String FILE_PROCESS_TIME = "processTime";
+	private static final String DB_DRIVER = "org.h2.Driver";
 	private String url;
 	private String urlNoDb;
-	private String user;
-	private String password;
+	private static final String USER = "sa";
+	private static final String PASSWORD = "sa";
 	private PreparedStatement pstTcp;
 	private PreparedStatement pstUdp;
 	private PreparedStatement pstIcmp;
@@ -67,16 +69,20 @@ public class DbStore {
 	 */
 	public DbStore(String dbName, boolean createDB){
 		logger = LogManager.getLogger(DbStore.class);
-        url = "jdbc:mysql://localhost:3306/" + dbName + "?autoReconnect=true&useSSL=false";
-        urlNoDb = "jdbc:mysql://localhost:3306/?autoReconnect=true&useSSL=false";
-        user = "root";
-        password = "password";
+        //url = "jdbc:mysql://localhost:3306/" + dbName + "?autoReconnect=true&useSSL=false";
+        //urlNoDb = "jdbc:mysql://localhost:3306/?autoReconnect=true&useSSL=false";
+		url = "jdbc:h2:~/test/"+dbName+";MV_STORE=FALSE;LOCK_TIMEOUT=10000";
+		urlNoDb = "jdbc:h2:~/test/"+dbName+";MV_STORE=FALSE;LOCK_TIMEOUT=10000";
         if (createDB) {
         	setupDB(dbName);
         } else {
         	if(!dbName.isEmpty() && !dbName.equals("") && dbName != null) clearStatsTable();
         }
-        
+        try {
+			Class.forName(DB_DRIVER);
+		} catch (ClassNotFoundException e) {
+			logger.error("Error while loading database driver " + e.getMessage());
+		}
 	}
 	
 	/**
@@ -164,7 +170,7 @@ public class DbStore {
 		}
 		try {
 			long startTime = System.currentTimeMillis();
-			long[] rs = pst.executeLargeBatch();
+			int[] rs = pst.executeBatch();
 			con.commit();
 			long endTime = System.currentTimeMillis();
 			logger.debug("commitBatch - commited " + rs.length + " entries in " + (endTime - startTime)/1000 + " seconds.");
@@ -220,7 +226,7 @@ public class DbStore {
 	private void openConnection() {
 		try {
 			if (con == null || con.isClosed()) {
-					con = DriverManager.getConnection(url, user, password);
+					con = DriverManager.getConnection(url, USER, PASSWORD);
 					con.setAutoCommit(false);
 			}
 			if (pstTcp == null || pstTcp.isClosed()) {
@@ -247,10 +253,10 @@ public class DbStore {
 	private void clearDbTable(String dbName, Connection connection) throws SQLException {
 		Statement st = null;
 		st = connection.createStatement();
-		st.executeUpdate("TRUNCATE " + dbName + "." + TCP_FLOODING_TABLE_NAME);
-		st.executeUpdate("TRUNCATE " + dbName + "." + UDP_FLOODING_TABLE_NAME);
-		st.executeUpdate("TRUNCATE " + dbName + "." + ICMP_FLOODING_TABLE_NAME);
-		st.executeUpdate("TRUNCATE " + dbName + "." + COUNTRY_STAT_TABLE_NAME);
+		st.executeUpdate("TRUNCATE TABLE " + TCP_FLOODING_TABLE_NAME);
+		st.executeUpdate("TRUNCATE TABLE " + UDP_FLOODING_TABLE_NAME);
+		st.executeUpdate("TRUNCATE TABLE " + ICMP_FLOODING_TABLE_NAME);
+		st.executeUpdate("TRUNCATE TABLE " + COUNTRY_STAT_TABLE_NAME);
 		st.close();
 	}
 	
@@ -261,9 +267,9 @@ public class DbStore {
 		Connection con = null;
 		Statement  st = null;
 		try {
-			con = DriverManager.getConnection(url, user, password);
+			con = DriverManager.getConnection(url, USER, PASSWORD);
 			st = con.createStatement();
-			st.executeUpdate("TRUNCATE " + COUNTRY_STAT_TABLE_NAME);
+			st.executeUpdate("TRUNCATE TABLE " + COUNTRY_STAT_TABLE_NAME);
 		} catch (SQLException e) {
 			logger.error("Database failed to truncate " + COUNTRY_STAT_TABLE_NAME, e.getMessage());
 		} finally {
@@ -294,9 +300,9 @@ public class DbStore {
 		Connection connection = null;
 		try {
 			// Create DB
-			connection = DriverManager.getConnection(urlNoDb, user, password);
+			connection = DriverManager.getConnection(urlNoDb, USER, PASSWORD);
 		    Statement  statement = connection.createStatement();
-		    statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbName);
+		    //statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbName);
 		    // Create tables
 		    createTable(TCP_FLOODING_TABLE_NAME, dbName, connection);
 		    createTable(UDP_FLOODING_TABLE_NAME, dbName, connection);
@@ -327,7 +333,7 @@ public class DbStore {
 	 * @throws SQLException
 	 */
 	private void createCountryStatTable(String tableName, String dbName, Connection connection) throws SQLException {
-	    String sqlCreate = "CREATE TABLE IF NOT EXISTS " + dbName + "." + tableName
+	    String sqlCreate = "CREATE TABLE IF NOT EXISTS " + tableName
 	            + "  (Id BIGINT(20) NOT NULL AUTO_INCREMENT,"
 	            + "   SrcAddress VARBINARY(16),"
 	            + "   packetCount BIGINT,"
@@ -352,7 +358,7 @@ public class DbStore {
 	 * @throws SQLException
 	 */
 	private void createTable(String tableName, String dbName, Connection connection) throws SQLException {
-	    String sqlCreate = "CREATE TABLE IF NOT EXISTS " + dbName + "." + tableName
+	    String sqlCreate = "CREATE TABLE IF NOT EXISTS " + tableName
 	            + "  (Id BIGINT(20) NOT NULL AUTO_INCREMENT,"
 	            + "   Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
 	            + "   SrcAddress VARBINARY(16),"
@@ -372,7 +378,7 @@ public class DbStore {
 	 */
 	private void createSummaryTable(String dbName, Connection connection) throws SQLException {
 		String sqlCreate =
-    		"CREATE TABLE IF NOT EXISTS " + dbName + "." + SUMMARY_TABLE_NAME + " ("
+    		"CREATE TABLE IF NOT EXISTS " + SUMMARY_TABLE_NAME + " ("
 				+ FILE_NAME + " TEXT, "
 				+ FILE_SIZE + " BIGINT, "
 				+ FILE_PROCESS_TIME + " BIGINT, "
@@ -406,7 +412,7 @@ public class DbStore {
 			long processTime, HashMap<String, Long> packets) {
 		Connection connection = null;
 		try {
-			connection = DriverManager.getConnection(url, user, password);
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
 		    String sqlInsert =
 		    	"INSERT INTO " + SUMMARY_TABLE_NAME + " ("
 		    			+ FILE_NAME + "," + FILE_SIZE + "," + FILE_PROCESS_TIME + ","
@@ -464,7 +470,7 @@ public class DbStore {
 		String query = "SELECT * FROM " + SUMMARY_TABLE_NAME + " LIMIT 1";
 		Connection connection = null;
 		try {
-			connection = DriverManager.getConnection(url, user, password);
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			Statement  statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(query);
 			if(rs.next()) {
@@ -573,8 +579,8 @@ public class DbStore {
 		return "SELECT "
 				+ "SrcAddress, "
 				+ "COUNT(*) AS packetCount, "
-				+ "(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS totalSeconds, "
-				+ "COUNT(*)/(TIME_TO_SEC(MAX(TIMESTAMP)) - TIME_TO_SEC(MIN(TIMESTAMP))) AS rate "
+				+ "TIMESTAMPDIFF(SECOND, MIN(TIMESTAMP), MAX(TIMESTAMP)) AS totalSeconds, "
+				+ "COUNT(*) / NULLIF(TIMESTAMPDIFF(SECOND, MIN(TIMESTAMP), MAX(TIMESTAMP)), 0) AS rate "
 				+ "FROM " + tableName + " "
 				+ "GROUP BY SrcAddress ";
 	}
@@ -589,11 +595,11 @@ public class DbStore {
 	private String getAttackRateQuery(String tableName, int minPacket, int minSecs, int rate) {
 		return "SELECT "
 				+ "TIMESTAMP, "
-				+ "COUNT(*) AS packetPerSecond "
-				+ "FROM " + tableName + " "
+				+ "COUNT(*) AS packetPerSecond FROM ("
+				+ "SELECT  FORMATDATETIME(TIMESTAMP, 'yyyy-MM-dd HH:mm:ss') as TIMESTAMP FROM " + tableName + " "
 				+ "WHERE EXISTS ("
-				+ getDosVictimsQuery(tableName, minPacket, minSecs, rate) + ") "
-				+ "GROUP BY TIMESTAMP";
+				+ getDosVictimsQuery(tableName, minPacket, minSecs, rate) + ")) AS stamp "
+				+ "GROUP BY TIMESTAMP ORDER BY TIMESTAMP ASC";
 	}
 	
 	/**
@@ -604,10 +610,10 @@ public class DbStore {
 	private String getAttackRateForAddressQuery(String tableName) {
 		return "SELECT "
 				+ "TIMESTAMP, "
-				+ "COUNT(*) AS packetPerSecond "
-				+ "FROM " + tableName + " "
-				+ "WHERE SrcAddress = ? "
-				+ "GROUP BY TIMESTAMP";
+				+ "COUNT(*) AS packetPerSecond FROM ("
+				+ "SELECT  FORMATDATETIME(TIMESTAMP, 'yyyy-MM-dd HH:mm:ss') as TIMESTAMP FROM " + tableName + " "
+				+ "WHERE SrcAddress = ? ) AS stamp "
+				+ "GROUP BY TIMESTAMP ORDER BY TIMESTAMP ASC";
 	}
 	
 	/**
@@ -619,9 +625,10 @@ public class DbStore {
 	public ArrayList<RateContent> getAttackRate(String tableName, int minPacket, int minSecs, int rate) {
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
 		String query = getAttackRateQuery(tableName, minPacket, minSecs, rate);
+		System.out.println(query);
 		Connection connection = null;
 		try {
-			connection = DriverManager.getConnection(url, user, password);
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			Statement  statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(query);
 			while (rs.next()) {
@@ -637,15 +644,24 @@ public class DbStore {
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
 		Connection connection = null;
 		try {
-			connection = DriverManager.getConnection(url, user, password);
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
+			System.out.println(getAttackRateForAddressQuery(tableName));
 			PreparedStatement  ps = connection.prepareStatement(getAttackRateForAddressQuery(tableName));
 			ps.setBytes(1, address);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
 				rateArr.add(new RateContent(rs.getTimestamp("Timestamp").getTime(), rs.getInt("packetPerSecond")));
 			}
-		} catch (SQLException e) {
+		} catch (Exception e) {
 			logger.error("Database failed", e);
+		} finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
 		}
 		return rateArr;
 	}
@@ -661,9 +677,10 @@ public class DbStore {
 		long startTime = System.currentTimeMillis();
 		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
 		String query = getDosVictimsQuery(tableName, minPacket, minSecs, rate);
+		System.out.println(query);
 		Connection connection = null;
 		try {
-			connection = DriverManager.getConnection(url, user, password);
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			
 			Statement  statement = connection.createStatement();
 			PreparedStatement ps = connection.prepareStatement(getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
@@ -764,9 +781,10 @@ public class DbStore {
 		
 		Connection connection = null;
 		try {
-			connection = DriverManager.getConnection(url, user, password);
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			Statement  statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
+			System.out.println(getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
 			while (rs.next()) {
 				resultArr.add(new CountryContent(
 						rs.getString("Country"),
@@ -796,29 +814,44 @@ public class DbStore {
 	 * 
 	 * @return Array containing the database file names
 	 */
-	public String[] getAllDataBaseNames() {
+	public static String[] getAllDataBaseNames() {
 		ArrayList<String> result = new ArrayList<String>();
 		Connection connection = null;
-		try {
-			connection = DriverManager.getConnection(urlNoDb, user, password);
-			DatabaseMetaData meta = (DatabaseMetaData) connection.getMetaData();
-			ResultSet rs = meta.getCatalogs();
-			while (rs.next()) {
-				String dbName = rs.getString("TABLE_CAT");
-				String fileName = getFileNameFromDb(connection, dbName);
-				if (fileName != null) {
-					result.add(fileName);
-				}
+		
+		File f = new File(System.getProperty("user.home") + File.separator + "test");
+		FilenameFilter fileFilter = new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				return (name.endsWith(".mv.db") || name.endsWith(".h2.db"));
 			}
-		} catch (SQLException e) {
-			logger.error("Database failed", e);
-			return null;
-		} finally {
-			if (connection != null) {
-				try {
-					connection.close();
-				} catch (SQLException e) {
-					logger.error("Database failed", e);
+		};
+		String[] files = f.list(fileFilter);
+		
+		for(String dbName : files) {
+			dbName = dbName.replace(".mv.db", "");
+			dbName = dbName.replace(".h2.db", "");
+			String url = "jdbc:h2:~/test/"+dbName+";MV_STORE=FALSE";
+			try {
+				connection = DriverManager.getConnection(url, USER, PASSWORD);
+				//DatabaseMetaData meta = (DatabaseMetaData) connection.getMetaData();
+				//ResultSet rs = meta.getCatalogs();
+				//while (rs.next()) {
+					//String dbName = rs.getString("TABLE_CAT");
+					String fileName = getFileNameFromDb(connection, dbName);
+					if (fileName != null) {
+						result.add(fileName);
+					}
+				//}
+			} catch (SQLException e) {
+				LogManager.getLogger(DbStore.class).error("Database failed", e);
+				return null;
+			} finally {
+				if (connection != null) {
+					try {
+						connection.close();
+					} catch (SQLException e) {
+						LogManager.getLogger(DbStore.class).error("Database failed", e);
+					}
 				}
 			}
 		}
@@ -832,9 +865,9 @@ public class DbStore {
 	 * @param dbName Database name to sear file on.
 	 * @return file name if found. Null otherwise.
 	 */
-	public String getFileNameFromDb(Connection connection, String dbName) {
+	private static String getFileNameFromDb(Connection connection, String dbName) {
 		String fileName = null;
-		String query= "SELECT fileName FROM " + dbName+ ".summary LIMIT 1";
+		String query= "SELECT fileName FROM summary LIMIT 1";
 		Statement statement;
 		try {
 			statement = connection.createStatement();

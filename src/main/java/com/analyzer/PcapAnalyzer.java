@@ -101,8 +101,7 @@ public class PcapAnalyzer {
 	 * @return
 	 */
 	public static String[] getDbNames() {
-		DbStore db = new DbStore("",false);
-		return db.getAllDataBaseNames();
+		return DbStore.getAllDataBaseNames();
 	}
 	
 	public void processPcapFile() {

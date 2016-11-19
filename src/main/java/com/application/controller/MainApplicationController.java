@@ -156,7 +156,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		fileStage.initOwner(mainBorderPane.getScene().getWindow());
 		File f = fileChooser.showOpenDialog(fileStage);
 		if(f == null) return;
-		System.out.println("Is file in DB " + PcapAnalyzer.isInDb(f));
+		//System.out.println("Is file in DB " + PcapAnalyzer.isInDb(f));
 		
 		AtomicInteger progress = new AtomicInteger(0);
 		AtomicReference<String> progressTitle = new AtomicReference<String>();
@@ -179,10 +179,11 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		};
 		task.setOnSucceeded(e -> {
 			//loadOverviewData(pcapAnalyzer);
+			progress.set(-1);
 			stopProgressIndicator();
         });
         Thread th = new Thread(task);
-        th.setDaemon(true);
+        th.setName("File Processor");
         th.start();
 	}
 	
@@ -264,7 +265,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			stopProgressIndicator();
         });
         Thread th = new Thread(task);
-        th.setDaemon(true);
+        th.setName("Saved File Processor");
         th.start();
 	}
 
@@ -646,13 +647,19 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		} else { 
 			Task<Void> task = new Task<Void>() {
 			    @Override public Void call() {
+			    	// Delaying the start of the thread
+			    	try {
+						Thread.sleep(1000);
+					} catch (Exception e) {
+						System.out.println(e.getMessage());
+					}
 			    	int value = 0;
 			    	String message = "";
 			    	while (value >= 0) { // exits when we feed -1
 			    		try {
 							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
+						} catch (Exception e) {
+							System.out.println(e.getMessage());
 						}
 			    		int newVal = progress.get();
 			    		String newMessage = progressTitle.get();
@@ -670,7 +677,9 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			};
 			progressBar.progressProperty().bind(task.progressProperty());
 			progressLabel.textProperty().bind(task.messageProperty());
-			new Thread(task).start();
+			Thread th = new Thread(task);
+			th.setName("Progress Inspector");
+			th.start();
 		}
 	}
 	
