@@ -1,19 +1,16 @@
 package com.analyzer;
 
 import java.io.EOFException;
-import java.io.File;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.pcap4j.core.NotOpenException;
 import org.pcap4j.core.PcapHandle;
 import org.pcap4j.core.PcapHandle.TimestampPrecision;
 import org.pcap4j.core.PcapNativeException;
@@ -28,25 +25,25 @@ import org.pcap4j.packet.IpV4Packet.IpV4Header;
 import org.pcap4j.packet.IpV6Packet;
 import org.pcap4j.packet.IpV6Packet.IpV6Header;
 import org.pcap4j.packet.Packet;
-import org.pcap4j.packet.Packet.Header;
 import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.packet.TcpPacket.TcpHeader;
 import org.pcap4j.packet.UdpPacket;
-import org.pcap4j.packet.UdpPacket.UdpHeader;
 import org.pcap4j.packet.UnknownPacket;
 import org.pcap4j.packet.namednumber.IcmpV4Type;
-import org.pcap4j.packet.namednumber.IpNumber;
 import org.pcap4j.util.IpV4Helper;
 
 import com.database.DbStore;
 
+/**
+ * @author aavalos
+ *
+ */
 @SuppressWarnings("javadoc")
 public class PcapReader implements Runnable {
 	private static Logger logger;
-
-	private final static int TCP = IpNumber.TCP.hashCode();
-	private final static int ICMPV4 = IpNumber.ICMPV4.hashCode();
-	private final static int UDP = IpNumber.UDP.hashCode();
+	private DbStore dbStrore;
+	private AtomicInteger progress;
+	private String pcapFile;
 	private int packetIndex;
 	private int packetProcessed;
 	private int ipV4Packets;
@@ -56,17 +53,20 @@ public class PcapReader implements Runnable {
 	private int icmpPackets;
 	private int unknownPackets;
 	private int illegalPackets;
-	public int totalPackets;
-	public int tcpFloodPackets;
-	public int udpFloodPackets;
-	public int icmpFloodPackets;
-	private DbStore dbStrore;
-	private AtomicInteger progress;
-
-	private String pcapFile;
-
+	private int tcpFloodPackets;
+	private int udpFloodPackets;
+	private int icmpFloodPackets;
 	private int packetMax;
 
+	/**
+	 * 
+	 * Constructor
+	 *
+	 * @param pcapFileLocation
+	 * @param dbName
+	 * @param progress
+	 * @param packetMax
+	 */
 	PcapReader(String pcapFileLocation, String dbName, AtomicInteger progress, int packetMax) {
 		logger = LogManager.getLogger(PcapReader.class);
 		pcapFile = pcapFileLocation;
@@ -86,52 +86,144 @@ public class PcapReader implements Runnable {
 		this.packetMax = packetMax;
 		dbStrore = new DbStore(dbName, false);
 	}
-	
-	public int getPacketsRead() {
+
+	/**
+	 * Gets the value of pcapFile
+	 *
+	 * @return the pcapFile
+	 */
+	public String getPcapFile() {
+		return pcapFile;
+	}
+
+
+	/**
+	 * Gets the value of packetIndex
+	 *
+	 * @return the packetIndex
+	 */
+	public int getPacketIndex() {
 		return packetIndex;
 	}
-	
-	public int getPacketsProcessed() {
+
+
+
+	/**
+	 * Gets the value of packetProcessed
+	 *
+	 * @return the packetProcessed
+	 */
+	public int getPacketProcessed() {
 		return packetProcessed;
 	}
-	
-	public int getIpV4pPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of ipV4Packets
+	 *
+	 * @return the ipV4Packets
+	 */
+	public int getIpV4Packets() {
 		return ipV4Packets;
 	}
-	
-	public int getIpV6pPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of ipV6Packets
+	 *
+	 * @return the ipV6Packets
+	 */
+	public int getIpV6Packets() {
 		return ipV6Packets;
 	}
-	
-	public int getTcpPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of tcpPackets
+	 *
+	 * @return the tcpPackets
+	 */
+	public int getTcpPackets() {
 		return tcpPackets;
 	}
-	
-	public int getUdpPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of udpPackets
+	 *
+	 * @return the udpPackets
+	 */
+	public int getUdpPackets() {
 		return udpPackets;
 	}
-	
-	public int getIcmpPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of icmpPackets
+	 *
+	 * @return the icmpPackets
+	 */
+	public int getIcmpPackets() {
 		return icmpPackets;
 	}
-	
-	public int getUnknownPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of unknownPackets
+	 *
+	 * @return the unknownPackets
+	 */
+	public int getUnknownPackets() {
 		return unknownPackets;
 	}
-	
-	public int getIllegalPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of illegalPackets
+	 *
+	 * @return the illegalPackets
+	 */
+	public int getIllegalPackets() {
 		return illegalPackets;
 	}
-	
-	public int getTcpFloodPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of tcpFloodPackets
+	 *
+	 * @return the tcpFloodPackets
+	 */
+	public int getTcpFloodPackets() {
 		return tcpFloodPackets;
 	}
-	
-	public int getUdpFloodPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of udpFloodPackets
+	 *
+	 * @return the udpFloodPackets
+	 */
+	public int getUdpFloodPackets() {
 		return udpFloodPackets;
 	}
-	
-	public int getIcmpFloodPacketsRead() {
+
+
+
+	/**
+	 * Gets the value of icmpFloodPackets
+	 *
+	 * @return the icmpFloodPackets
+	 */
+	public int getIcmpFloodPackets() {
 		return icmpFloodPackets;
 	}
 
@@ -155,16 +247,12 @@ public class PcapReader implements Runnable {
 		Packet packet = null;
 		Timestamp tstmp = handle.getTimestamp();
 		byte[] srcAddress = null;
-		byte[] destAddress = null;
-		int protocol = 0;
-		int srcPort = -1;
-		int destPort = -1;
 		boolean ack = false;
 		boolean syn = false;
-		double division = 1;
 		logger.info("Parsing pcap file: " + pcapFile);
 		long startTime = System.currentTimeMillis();
 		for (;;) {
+			//Update the progress
 			int progressVal = (int) (((double) packetIndex) / packetMax * 100);
 			progress.set(progressVal);
 			try {
@@ -173,10 +261,6 @@ public class PcapReader implements Runnable {
 				
 				tstmp =handle.getTimestamp();
 				srcAddress = null;
-				destAddress = null;
-				protocol = 0;
-				srcPort = -1;
-				destPort = -1;
 				ack = false;
 				syn = false;
 				
@@ -185,8 +269,6 @@ public class PcapReader implements Runnable {
 					IpV4Packet ipV4Packet = packet.get(IpV4Packet.class);
 					IpV4Header ip4header = ipV4Packet.getHeader();
 					srcAddress = ip4header.getSrcAddr().getAddress();
-					destAddress = ip4header.getDstAddr().getAddress();
-					protocol = ip4header.getProtocol().hashCode();
 					//handle fragments
 					if (packet.contains(FragmentedPacket.class)) {
 						short id = ip4header.getIdentification();
@@ -249,10 +331,8 @@ public class PcapReader implements Runnable {
 							}
 						} else if (packet.contains(UnknownPacket.class)) {
 							unknownPackets++;
-							//System.out.println(ipV4Packet.get(UnknownPacket.class).getBuilder().build());
 						} else if (packet.contains(IllegalPacket.class)) {
 							illegalPackets++;
-							//System.out.println(ipV4Packet.get(IllegalPacket.class).getBuilder().build());
 						} else {
 							logger.warn("IPV4 Protocol not recognized: " + ip4header.getProtocol().toString() + " #" + packetIndex);
 							Iterator<Packet> iterator = packet.iterator();
@@ -266,7 +346,6 @@ public class PcapReader implements Runnable {
 					IpV6Packet ipV6Packet = packet.get(IpV6Packet.class);
 					IpV6Header ip6header = ipV6Packet.getHeader();
 					srcAddress = ip6header.getSrcAddr().getAddress();
-					destAddress = ip6header.getDstAddr().getAddress();
 					if (ipV6Packet.contains(TcpPacket.class)) {
 						tcpPackets++;
 						//logger.info("IPV6 packet contains TCP");
@@ -300,6 +379,7 @@ public class PcapReader implements Runnable {
 		logger.debug("Packets read: " + packetIndex);
 		logger.debug("Packets processed: " + packetProcessed);
 		handle.close();
+		// Just in case we are setting this as completed.
 		progress.set(100);
 	}
 

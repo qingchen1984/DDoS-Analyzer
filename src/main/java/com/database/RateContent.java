@@ -3,8 +3,6 @@
  */
 package com.database;
 
-import java.sql.Timestamp;
-
 /**
  * @author aavalos
  *

@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -52,7 +51,6 @@ public class DbStore {
 	public static final String FILE_PROCESS_TIME = "processTime";
 	private static final String DB_DRIVER = "org.h2.Driver";
 	private String url;
-	private String urlNoDb;
 	private static final String USER = "sa";
 	private static final String PASSWORD = "sa";
 	private PreparedStatement pstTcp;
@@ -69,10 +67,7 @@ public class DbStore {
 	 */
 	public DbStore(String dbName, boolean createDB){
 		logger = LogManager.getLogger(DbStore.class);
-        //url = "jdbc:mysql://localhost:3306/" + dbName + "?autoReconnect=true&useSSL=false";
-        //urlNoDb = "jdbc:mysql://localhost:3306/?autoReconnect=true&useSSL=false";
-		url = "jdbc:h2:~/test/"+dbName+";MV_STORE=FALSE;LOCK_TIMEOUT=10000";
-		urlNoDb = "jdbc:h2:~/test/"+dbName+";MV_STORE=FALSE;LOCK_TIMEOUT=10000";
+		url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";MV_STORE=FALSE;LOCK_TIMEOUT=10000";
         if (createDB) {
         	setupDB(dbName);
         } else {
@@ -300,9 +295,7 @@ public class DbStore {
 		Connection connection = null;
 		try {
 			// Create DB
-			connection = DriverManager.getConnection(urlNoDb, USER, PASSWORD);
-		    Statement  statement = connection.createStatement();
-		    //statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbName);
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
 		    // Create tables
 		    createTable(TCP_FLOODING_TABLE_NAME, dbName, connection);
 		    createTable(UDP_FLOODING_TABLE_NAME, dbName, connection);
@@ -625,7 +618,6 @@ public class DbStore {
 	public ArrayList<RateContent> getAttackRate(String tableName, int minPacket, int minSecs, int rate) {
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
 		String query = getAttackRateQuery(tableName, minPacket, minSecs, rate);
-		System.out.println(query);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
@@ -645,7 +637,6 @@ public class DbStore {
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
-			System.out.println(getAttackRateForAddressQuery(tableName));
 			PreparedStatement  ps = connection.prepareStatement(getAttackRateForAddressQuery(tableName));
 			ps.setBytes(1, address);
 			ResultSet rs = ps.executeQuery();
@@ -677,7 +668,6 @@ public class DbStore {
 		long startTime = System.currentTimeMillis();
 		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
 		String query = getDosVictimsQuery(tableName, minPacket, minSecs, rate);
-		System.out.println(query);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
@@ -784,7 +774,6 @@ public class DbStore {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			Statement  statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
-			System.out.println(getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
 			while (rs.next()) {
 				resultArr.add(new CountryContent(
 						rs.getString("Country"),
@@ -810,7 +799,7 @@ public class DbStore {
 	}
 	
 	/**
-	 * Gets all the file names that were processes into databases.
+	 * Gets all the file names that were processed into databases.
 	 * 
 	 * @return Array containing the database file names
 	 */
@@ -818,7 +807,7 @@ public class DbStore {
 		ArrayList<String> result = new ArrayList<String>();
 		Connection connection = null;
 		
-		File f = new File(System.getProperty("user.home") + File.separator + "test");
+		File f = new File(System.getProperty("user.home") + File.separator + "DDoS-Analyzer" + File.separator + "database-results");
 		FilenameFilter fileFilter = new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
@@ -827,30 +816,27 @@ public class DbStore {
 		};
 		String[] files = f.list(fileFilter);
 		
-		for(String dbName : files) {
-			dbName = dbName.replace(".mv.db", "");
-			dbName = dbName.replace(".h2.db", "");
-			String url = "jdbc:h2:~/test/"+dbName+";MV_STORE=FALSE";
-			try {
-				connection = DriverManager.getConnection(url, USER, PASSWORD);
-				//DatabaseMetaData meta = (DatabaseMetaData) connection.getMetaData();
-				//ResultSet rs = meta.getCatalogs();
-				//while (rs.next()) {
-					//String dbName = rs.getString("TABLE_CAT");
+		if(files != null) {
+			for(String dbName : files) {
+				dbName = dbName.replace(".mv.db", "");
+				dbName = dbName.replace(".h2.db", "");
+				String url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";MV_STORE=FALSE";
+				try {
+					connection = DriverManager.getConnection(url, USER, PASSWORD);
 					String fileName = getFileNameFromDb(connection, dbName);
 					if (fileName != null) {
 						result.add(fileName);
 					}
-				//}
-			} catch (SQLException e) {
-				LogManager.getLogger(DbStore.class).error("Database failed", e);
-				return null;
-			} finally {
-				if (connection != null) {
-					try {
-						connection.close();
-					} catch (SQLException e) {
-						LogManager.getLogger(DbStore.class).error("Database failed", e);
+				} catch (SQLException e) {
+					LogManager.getLogger(DbStore.class).error("Database failed", e);
+					return null;
+				} finally {
+					if (connection != null) {
+						try {
+							connection.close();
+						} catch (SQLException e) {
+							LogManager.getLogger(DbStore.class).error("Database failed", e);
+						}
 					}
 				}
 			}
@@ -859,7 +845,7 @@ public class DbStore {
 	}
 	
 	/**
-	 * Gets the file name used for a specifc database.
+	 * Gets the file name used for a specific database.
 	 * 
 	 * @param connection
 	 * @param dbName Database name to sear file on.

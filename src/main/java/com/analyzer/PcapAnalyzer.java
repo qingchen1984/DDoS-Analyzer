@@ -19,9 +19,6 @@ import com.database.RowContent;
 
 public class PcapAnalyzer {
 	
-	//private static String srcPcapFile = "C:\\Users\\aavalos\\Downloads\\dataset.pcap";
-	//private static String srcPcapFile = "C:\\Temp\\dataset.pcap.Packets_0.pcap";
-	//private static String srcPcapFile = "C:\\Users\\aavalos\\Documents\\test500.pcap";
 	public static final String TCP_FLOODING_TABLE_NAME = DbStore.TCP_FLOODING_TABLE_NAME;
 	public static final String UDP_FLOODING_TABLE_NAME = DbStore.UDP_FLOODING_TABLE_NAME;
 	public static final String ICMP_FLOODING_TABLE_NAME = DbStore.ICMP_FLOODING_TABLE_NAME;
@@ -85,8 +82,7 @@ public class PcapAnalyzer {
 	 */
 	public static boolean isInDb(File file) {
 		String fileName = file.getName();
-		DbStore db = new DbStore("",false);
-		String[] dbNames = db.getAllDataBaseNames();
+		String[] dbNames = DbStore.getAllDataBaseNames();
 		for (String storedDB : dbNames) {
 			if (fileName.equals(storedDB)) {
 				return true;
@@ -152,18 +148,18 @@ public class PcapAnalyzer {
 		iterator = threadArr.entrySet().iterator();
 		while (iterator.hasNext()) {
 			PcapReader pr = iterator.next().getValue();
-			packetsProcessed = packetsProcessed + pr.getPacketsProcessed();
-			packetsRead = packetsRead + pr.getPacketsRead();
-			ipV4PacketsRead = ipV4PacketsRead + pr.getIpV4pPacketsRead();
-			ipV6PacketsRead = ipV6PacketsRead + pr.getIpV6pPacketsRead();
-			tcpPacketsRead = tcpPacketsRead + pr.getTcpPacketsRead();
-			udpPacketsRead = udpPacketsRead + pr.getUdpPacketsRead();
-			icmpPacketsRead = icmpPacketsRead + pr.getIcmpPacketsRead();
-			unknownPacketsRead = unknownPacketsRead + pr.getUnknownPacketsRead();
-			illegalPacketsRead = illegalPacketsRead + pr.getIllegalPacketsRead();
-			tcpFloodPacketsRead = tcpFloodPacketsRead + pr.getTcpFloodPacketsRead();
-			udpFloodPacketsRead = udpFloodPacketsRead + pr.getUdpFloodPacketsRead();
-			icmpFloodPacketsRead = icmpFloodPacketsRead + pr.getIcmpFloodPacketsRead();
+			packetsProcessed = packetsProcessed + pr.getPacketProcessed();
+			packetsRead = packetsRead + pr.getPacketIndex();
+			ipV4PacketsRead = ipV4PacketsRead + pr.getIpV4Packets();
+			ipV6PacketsRead = ipV6PacketsRead + pr.getIpV6Packets();
+			tcpPacketsRead = tcpPacketsRead + pr.getTcpPackets();
+			udpPacketsRead = udpPacketsRead + pr.getUdpPackets();
+			icmpPacketsRead = icmpPacketsRead + pr.getIcmpPackets();
+			unknownPacketsRead = unknownPacketsRead + pr.getUnknownPackets();
+			illegalPacketsRead = illegalPacketsRead + pr.getIllegalPackets();
+			tcpFloodPacketsRead = tcpFloodPacketsRead + pr.getTcpFloodPackets();
+			udpFloodPacketsRead = udpFloodPacketsRead + pr.getUdpFloodPackets();
+			icmpFloodPacketsRead = icmpFloodPacketsRead + pr.getIcmpFloodPackets();
 		}
 		HashMap<String,Long> infoPackets = new HashMap<String,Long>();
 		infoPackets.put("packetsTotal", packetsRead);

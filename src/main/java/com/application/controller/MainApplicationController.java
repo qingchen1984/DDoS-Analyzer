@@ -4,78 +4,29 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.sql.Timestamp;
-import java.text.DateFormat;
 import java.text.NumberFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.analyzer.PcapAnalyzer;
 import com.database.CountryContent;
 import com.database.RateContent;
 import com.database.RowContent;
-
-import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
-import javafx.event.ActionEvent;
-import javafx.event.Event;
-import javafx.event.EventHandler;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.fxml.Initializable;
-import javafx.scene.Cursor;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.chart.Axis;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.LineChart;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.PieChart;
-import javafx.scene.chart.XYChart;
-import javafx.scene.chart.XYChart.Data;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.stage.FileChooser;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.util.Callback;
-
 import com.lynden.gmapsfx.GoogleMapView;
 import com.lynden.gmapsfx.MapComponentInitializedListener;
 import com.lynden.gmapsfx.javascript.object.GoogleMap;
-import com.lynden.gmapsfx.javascript.object.InfoWindow;
-import com.lynden.gmapsfx.javascript.object.InfoWindowOptions;
 import com.lynden.gmapsfx.javascript.object.LatLong;
 import com.lynden.gmapsfx.javascript.object.MapOptions;
-import com.lynden.gmapsfx.javascript.object.MapShape;
 import com.lynden.gmapsfx.javascript.object.MapTypeIdEnum;
 import com.lynden.gmapsfx.javascript.object.Marker;
 import com.lynden.gmapsfx.javascript.object.MarkerOptions;
@@ -85,6 +36,35 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.impl.CoordinateArraySequence;
 import com.vividsolutions.jts.simplify.DouglasPeuckerSimplifier;
+
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.PieChart;
+import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Data;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
+import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 public class MainApplicationController implements Initializable, MapComponentInitializedListener{
 	
@@ -117,6 +97,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	private MapOptions mapOptions;
 	private PcapAnalyzer pcapAnalyzer;
 	private String dbName;
+	private Logger logger;
 	
 	/**
 	 * Opens the Preferences Dialog
@@ -134,8 +115,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			newStage.initOwner(mainBorderPane.getScene().getWindow());
 			newStage.showAndWait();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Error while opening preferences " + e.getMessage());
 		}		
 	}
 
@@ -156,7 +136,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		fileStage.initOwner(mainBorderPane.getScene().getWindow());
 		File f = fileChooser.showOpenDialog(fileStage);
 		if(f == null) return;
-		//System.out.println("Is file in DB " + PcapAnalyzer.isInDb(f));
 		
 		AtomicInteger progress = new AtomicInteger(0);
 		AtomicReference<String> progressTitle = new AtomicReference<String>();
@@ -209,7 +188,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			newStage.getUserData();
 			dbName = (String) newStage.getUserData();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("Error while getting the window to display pre-processes files " + e.getMessage());
 		}
 		
 		if(dbName == null) return;
@@ -296,8 +275,8 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		if (size < 500) return convertPlotPoints(plotPoints);
 		
 		double distanceTolerance = size / 200;
-		System.out.println("Distance Tolerance to use: " + distanceTolerance);
-		System.out.println("Original size of plot points: " +size);
+		logger.debug("Distance Tolerance to use: " + distanceTolerance);
+		logger.debug("Original size of plot points: " +size);
 		GeometryFactory gf= new GeometryFactory();
 		// Convert plot points to an array of Coordinates
 		Coordinate[] coordinates = new Coordinate[size];
@@ -319,8 +298,8 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			}
 			simplified = DouglasPeuckerSimplifier.simplify(geom, distanceTolerance);
 			size = (int) simplified.getNumPoints();
-			System.out.println("Iterim distance tolerance: " + distanceTolerance);
-			System.out.println("Iterim size: " + size);
+			logger.debug("Iterim distance tolerance: " + distanceTolerance);
+			logger.debug("Iterim size: " + size);
 			count ++;
 		}
 		// Convert to a JavaFX-PlotChart-friendly array 
@@ -328,10 +307,15 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		for (Coordinate each : simplified.getCoordinates()) {
 		    update.add(new Data<>((new Timestamp((long) each.x)).toString(), each.y));
 		}
-		System.out.println("Simplified size of plot points: " + update.size());
+		logger.debug("Simplified size of plot points: " + update.size());
 		return FXCollections.observableArrayList(update);
 	}
 
+	/**
+	 * Fills up previously processed data on the overview pane
+	 * 
+	 * @param pcapAnalyzer
+	 */
 	private void loadOverviewData(PcapAnalyzer pcapAnalyzer) {
 		((Label) mainBorderPane.lookup("#fileName")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_NAME)));
 		String size = FileUtils.byteCountToDisplaySize((long) pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_SIZE));
@@ -353,6 +337,9 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		((Label) mainBorderPane.lookup("#packetsIcmpFlood")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_ICMP_PACKETS)));
 	}
 	
+	/**
+	 * Displays the overview data
+	 */
 	public void showOverviewData() {
 		showResultView("#overview_pane");
 	}
@@ -372,10 +359,16 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		} else if (id.contains("icmp")) {
 			setUpFloodTable(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME, icmpFloodData);
 		} else {
-			System.out.println("Button id not recognized: " + id);
+			logger.error("Button id not recognized: " + id);
 		}
 	}
 
+	/**
+	 * Sets up the data previously processed on the flood table pane.
+	 * 
+	 * @param tableName Possible table names. See: PcapAnalyzer.*_FLOODING_TABLE_NAME
+	 * @param data Table content.
+	 */
 	private void setUpFloodTable(String tableName, ObservableList<RowContent> data) {
 		//Need to show pane first since "setCellValueFactory" needs it.
 		String paneView = "#flood_table_pane";
@@ -439,7 +432,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		} else if (id.contains("icmp")) {
 			setUpMap(icmpFloodData);
 		} else {
-			System.out.println("Button id not recognized: " + id);
+			logger.error("Button id not recognized: " + id);
 		}
 		showResultView("#map_pane");
 	}
@@ -473,7 +466,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			pieChartView.setData(icmpFloodCountryData);
 		} else {
 			// source button not recognized
-			System.out.println("Button id not recognized: " + id);
+			logger.error("Button id not recognized: " + id);
 			return;
 		}
 		
@@ -546,6 +539,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 
 	@Override
 	public void initialize(URL arg0, ResourceBundle arg1) {
+		logger = LogManager.getLogger();
 		hideAllResultViews();
 		// Initialize table
 		columnMap = new HashMap<String, TableColumn<RowContent, String>>();
@@ -649,7 +643,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			    	try {
 						Thread.sleep(1000);
 					} catch (Exception e) {
-						System.out.println(e.getMessage());
+						logger.error("Error while sleeping" + e.getMessage());
 					}
 			    	int value = 0;
 			    	String message = "";
@@ -657,7 +651,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			    		try {
 							Thread.sleep(1000);
 						} catch (Exception e) {
-							System.out.println(e.getMessage());
+							logger.error("Error while sleeping" + e.getMessage());
 						}
 			    		int newVal = progress.get();
 			    		String newMessage = progressTitle.get();
