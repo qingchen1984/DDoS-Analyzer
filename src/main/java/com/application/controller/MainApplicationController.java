@@ -461,28 +461,26 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 */
 	public void showCountryPieChart(ActionEvent event) {
 		String id = ((Button) event.getSource()).getId();
-		pieChartView.setTitle("No content in Chart");
-		pieChartView.setData(FXCollections.observableArrayList());
+		// Set chart data depending on button pressed
 		if(id.equals("tcp_flood_pie_chart_button")) {
-			if (tcpFloodCountryData != null && tcpFloodCountryData.size() > 0) {
-				pieChartView.setTitle("Countries affected by amount of TCP packets");
-				pieChartView.setData(tcpFloodCountryData);
-			}
+			pieChartView.setTitle("Countries affected by amount of TCP packets");
+			pieChartView.setData(tcpFloodCountryData);
 		} else if(id.equals("udp_flood_pie_chart_button")) {
-			if (udpFloodCountryData != null && udpFloodCountryData.size() > 0) {
-				pieChartView.setTitle("Countries affected by amount of UDP packets");
-				pieChartView.setData(udpFloodCountryData);
-			}
+			pieChartView.setTitle("Countries affected by amount of UDP packets");
+			pieChartView.setData(udpFloodCountryData);
 		} else if(id.equals("icmp_flood_pie_chart_button")) {
-			if (icmpFloodCountryData != null && icmpFloodCountryData.size() > 0) {
-				pieChartView.setTitle("Countries affected by amount of ICMP packets");
-				pieChartView.setData(icmpFloodCountryData);
-			}
+			pieChartView.setTitle("Countries affected by amount of ICMP packets");
+			pieChartView.setData(icmpFloodCountryData);
 		} else {
 			// source button not recognized
 			System.out.println("Button id not recognized: " + id);
 			return;
 		}
+		
+		// Change the title in case that the chart is empty
+		if (pieChartView.getData() == null || pieChartView.getData().size() == 0) {
+			pieChartView.setTitle("No content in Chart");
+		} 
 		
 		// Adds mouse events for each pie slice.
 		for (final PieChart.Data data : pieChartView.getData()) {
