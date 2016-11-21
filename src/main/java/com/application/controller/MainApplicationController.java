@@ -275,7 +275,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		if (size < 500) return convertPlotPoints(plotPoints);
 		
 		double distanceTolerance = size / 200;
-		logger.debug("Distance Tolerance to use: " + distanceTolerance);
+		//logger.debug("Distance Tolerance to use: " + distanceTolerance);
 		logger.debug("Original size of plot points: " +size);
 		GeometryFactory gf= new GeometryFactory();
 		// Convert plot points to an array of Coordinates
@@ -539,8 +539,11 @@ public class MainApplicationController implements Initializable, MapComponentIni
 
 	@Override
 	public void initialize(URL arg0, ResourceBundle arg1) {
-		logger = LogManager.getLogger();
+		// Initialize map
+		mapView.addMapInializedListener(this);
+		
 		hideAllResultViews();
+		
 		// Initialize table
 		columnMap = new HashMap<String, TableColumn<RowContent, String>>();
 		columnMap.put(RowContent.SOURCE_ADDRESS, ipColumn);
@@ -571,14 +574,18 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			}); 
 			return row;
 		});
-		
-		// Initialize map
-		mapView.addMapInializedListener(this);
+
 		// Initialize LineChart
 		tcpAttackRate = FXCollections.observableArrayList();
 		udpAttackRate = FXCollections.observableArrayList();
 		icmpAttackRate = FXCollections.observableArrayList();
-		//progressLabel.setText("Processing please wait...   ");
+		//Initialize PieChart
+		tcpFloodCountryData = FXCollections.observableArrayList();
+		udpFloodCountryData = FXCollections.observableArrayList();
+		icmpFloodCountryData = FXCollections.observableArrayList();
+		
+		//logger.debug("Completed the Program initialization");
+		 
 	}
 
 	/* (non-Javadoc)
@@ -586,6 +593,9 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 */
 	@Override
 	public void mapInitialized() {
+		// For some reason the logger has to be initialized after the map was initialized
+		logger = LogManager.getLogger();
+		
 		 //Set the initial properties of the map.
 		mapOptions = new MapOptions();
 	    mapOptions.center(new LatLong(0, 0))
@@ -617,11 +627,15 @@ public class MainApplicationController implements Initializable, MapComponentIni
 			if (latt == 0 && longt == 0) continue;  
 			LatLong latLong = new LatLong(latt,longt);
 			//Add marker to the map
+			String attackDuration = DurationFormatUtils.formatDuration(rc.getTimeInSecs()*1000, "HH:mm:ss");
 			MarkerOptions markerOptions = new MarkerOptions();
 			markerOptions.position(latLong);
 			markerOptions.title("IP: " + rc.getSrcAddress() + "\n"
 							+ "Country: " + rc.getCountry() + "\n"
-							+ "City: " + rc.getCity());
+							+ "City: " + rc.getCity() + "\n"
+							+ "Packets: " + rc.getNumOfPackets() + "\n"
+							+ "Attack duration: " + attackDuration + "\n"
+							+ "Attack rate: " + rc.getAttackRate() + " packets/second \n");
 			Marker marker = new Marker(markerOptions);
 			map.addMarker( marker );
 		}
