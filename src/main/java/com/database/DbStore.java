@@ -67,7 +67,7 @@ public class DbStore {
 	 */
 	public DbStore(String dbName, boolean createDB){
 		logger = LogManager.getLogger(DbStore.class);
-		url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";LOCK_TIMEOUT=90000";
+		url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";LOCK_TIMEOUT=90000;MV_STORE=FALSE";
         if (createDB) {
         	setupDB(dbName);
         } else {
@@ -78,15 +78,6 @@ public class DbStore {
 		} catch (ClassNotFoundException e) {
 			logger.error("Error while loading database driver " + e.getMessage());
 		}
-	}
-	
-	/**
-	 * Sets am existing database name to be used if none was specified during object creation.
-	 * 
-	 * @param dbName
-	 */
-	public void setDb(String dbName) {
-		url = "jdbc:mysql://localhost:3306/" + dbName + "?autoReconnect=true&useSSL=false";
 	}
 	
 	/**
@@ -407,6 +398,7 @@ public class DbStore {
 	 */
 	public void setSummaryTable(String fileName, long fileSize, 
 			long processTime, HashMap<String, Long> packets) {
+		logger.info("Atempting to create a summary table for " + fileName);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
@@ -441,6 +433,7 @@ public class DbStore {
 		    preparedStmt.close();
 		} catch (SQLException e) {
 			logger.error("Database failed while creating summary table ", e);
+			return;
 		} finally {
 			try {
 				if (connection != null) {
@@ -450,6 +443,7 @@ public class DbStore {
 				logger.error("Database close connection failed", e);
 			}
 		}
+		logger.info("Successfully created a summary table for " + fileName);
 	}
 	
 	/**
