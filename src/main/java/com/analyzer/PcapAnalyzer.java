@@ -248,9 +248,26 @@ public class PcapAnalyzer {
 		} catch (InterruptedException e) {
 			logger.error(e.getMessage());
 		}
+		
 		long endTime = System.currentTimeMillis();
 		processTimeInMillis = processTimeInMillis + (endTime - startTime);
 		progress.set(100); // if we haven't done so, set it to completed.
+	}
+	
+	/**
+	 * Process files and stores into databases
+	 *
+	 * @param progress
+	 */
+	public void processVictims(AtomicInteger progress) {
+		// Save list of victims
+		progress.set(0);
+		dbStore.setVictimsTables(TCP_FLOODING_TABLE_NAME);
+		progress.set(33);
+		dbStore.setVictimsTables(UDP_FLOODING_TABLE_NAME);
+		progress.set(66);
+		dbStore.setVictimsTables(ICMP_FLOODING_TABLE_NAME);
+		progress.set(100);
 	}
 
 	/**

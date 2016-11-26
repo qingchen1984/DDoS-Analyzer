@@ -225,13 +225,13 @@ public class DbStore {
 					con.setAutoCommit(false);
 			}
 			if (pstTcp == null || pstTcp.isClosed()) {
-				pstTcp = con.prepareStatement(getInsertQueryForTable(TCP_FLOODING_TABLE_NAME));
+				pstTcp = con.prepareStatement(QueryFactory.getInsertQueryForTable(TCP_FLOODING_TABLE_NAME));
 			}
 			if (pstUdp == null || pstUdp.isClosed()) {
-				pstUdp = con.prepareStatement(getInsertQueryForTable(UDP_FLOODING_TABLE_NAME));
+				pstUdp = con.prepareStatement(QueryFactory.getInsertQueryForTable(UDP_FLOODING_TABLE_NAME));
 			}
 			if (pstIcmp == null || pstIcmp.isClosed()) {
-				pstIcmp = con.prepareStatement(getInsertQueryForTable(ICMP_FLOODING_TABLE_NAME));
+				pstIcmp = con.prepareStatement(QueryFactory.getInsertQueryForTable(ICMP_FLOODING_TABLE_NAME));
 			}
 		} catch (SQLException e) {
 			logger.error(e.getMessage(), e);
@@ -253,6 +253,9 @@ public class DbStore {
 		st.executeUpdate("TRUNCATE TABLE " + ICMP_FLOODING_TABLE_NAME);
 		st.executeUpdate("TRUNCATE TABLE " + COUNTRY_STAT_TABLE_NAME);
 		st.executeUpdate("TRUNCATE TABLE " + SUMMARY_TABLE_NAME);
+		st.executeUpdate("DROP TABLE IF EXISTS victims_" + TCP_FLOODING_TABLE_NAME);
+		st.executeUpdate("DROP TABLE IF EXISTS victims_" + UDP_FLOODING_TABLE_NAME);
+		st.executeUpdate("DROP TABLE IF EXISTS victims_" + ICMP_FLOODING_TABLE_NAME);
 		st.close();
 	}
 	
@@ -450,6 +453,35 @@ public class DbStore {
 	}
 	
 	/**
+	 * Creates tables group by the victims source address for each DOS attack.
+	 */
+	public void setVictimsTables(String tableName) {
+		logger.info("Atempting to create table for victims of " + tableName);
+		Connection connection = null;
+		Statement stmt = null;
+		String victimQuery = QueryFactory.getCreateAllDosVictimsQuery(tableName);
+		try {
+			connection = DriverManager.getConnection(url, USER, PASSWORD);
+			stmt = connection.createStatement();
+		    stmt.execute(victimQuery);
+		} catch (SQLException e) {
+			logger.error("Error while creating table for victims of " + tableName, e);
+		} finally {
+			try {
+				if (stmt != null) {
+					stmt.close();
+				}
+				if (connection != null) {
+					connection.close();
+				}
+			} catch (SQLException e) {
+				logger.error("Database close connection failed", e);
+			}
+		}
+		logger.info("Successfully created table for victims of " + tableName);
+	}
+	
+	/**
 	 * Gets the summary and statistics for the file previously processed.
 	 * The result will be populated in the input parameters.
 	 * 
@@ -500,125 +532,16 @@ public class DbStore {
 	}
 	
 	/**
-	 * Gets the insert query for the given table name.
-	 * 
-	 * @param tableName Table name for the insert query.
-	 * @return Insert string.
-	 */
-	private String getInsertQueryForTable(String tableName) {
-		return "INSERT INTO " + tableName 
-				+ "(Timestamp,SrcAddress) "
-    		+ "VALUES(?,?)";
-	}
-	
-	/**
-	 * Gets the insert query for the table that holds Country stats.
-	 * 
-	 * @param tableName Table name for the insert query.
-	 * @return
-	 */
-	private String getInsertCountryStatsQuery(String tableName) {
-		return "INSERT INTO " + tableName 
-				+ "(SrcAddress,packetCount,totalSeconds,rate,Country,City,FloodType) "
-    		+ "VALUES(?,?,?,?,?,?,?)";
-	}
-	
-	/**
-	 * Gets the select query for the table that holds Country stats.
-	 * 
-	 * @param tableName Table name for the insert query.
-	 * @return
-	 */
-	private String getSelectCountryStatsQuery(String tableName, String floodTable) {
-		return "SELECT "
-				+ " Country,"
-				+ " COUNT(*) AS numOfCountries,"
-				+ " SUM(packetCount) AS packetCount,"
-				+ " SUM(totalSeconds) AS totalSeconds"
-				+ " FROM " + tableName 
-				+ " WHERE FloodType='" + floodTable + "'"
-				+ " GROUP BY Country";
-	}
-	
-	/**
-	 * Query to be used to get a list of DOS victims and the amount of attack packets.
-	 * 
-	 * @param tableName Table name where to get the list from.
-	 * @param minPacket Lower bound of packets.
-	 * @param minSecs Lower bound of seconds.
-	 * @param rate Lower bound rate of attack (packets per second) for each source address.
-	 * @return Query
-	 */
-	private String getDosVictimsQuery(String tableName, int minPacket, int minSecs, int rate) {
-		return "SELECT "
-				+ "SrcAddress, "
-				+ "packetCount, "
-				+ "totalSeconds, "
-				+ "rate "
-				+ "FROM (" + getAllDosVictimsQuery(tableName) + ") AS temp "
-				+ "WHERE "
-					+ "packetCount >= " + minPacket + " AND "
-					+ "totalSeconds >= " + minSecs + " AND "
-					+ "rate >= " + rate;
-	}
-	
-	/**
-	 * Query to be used to get a list of DOS victims and the amount of attack packets.
-	 * 
-	 * @param tableName Table name where to get the list from
-	 * @param data.rate Lower bound rate of attack (packets per second) for each source address.
-	 * @return Query
-	 */
-	private String getAllDosVictimsQuery(String tableName) {
-		return "SELECT "
-				+ "SrcAddress, "
-				+ "COUNT(*) AS packetCount, "
-				+ "TIMESTAMPDIFF(SECOND, MIN(TIMESTAMP), MAX(TIMESTAMP)) AS totalSeconds, "
-				+ "COUNT(*) / NULLIF(TIMESTAMPDIFF(SECOND, MIN(TIMESTAMP), MAX(TIMESTAMP)), 0) AS rate "
-				+ "FROM " + tableName + " "
-				+ "GROUP BY SrcAddress ";
-	}
-	
-	/**
-	 * Query to be used to get a list of attack rate (packets per second).
-	 * 
-	 * @param tableName Table name where to get the list from.
-	 * @param rate Lower bound rate of attack (packets per second) for each source address.
-	 * @return Query
-	 */
-	private String getAttackRateQuery(String tableName, int minPacket, int minSecs, int rate) {
-		return "SELECT "
-				+ "TIMESTAMP, "
-				+ "COUNT(*) AS packetPerSecond FROM ("
-				+ "SELECT  FORMATDATETIME(TIMESTAMP, 'yyyy-MM-dd HH:mm:ss') as TIMESTAMP FROM " + tableName + " "
-				+ "WHERE EXISTS ("
-				+ getDosVictimsQuery(tableName, minPacket, minSecs, rate) + ")) AS stamp "
-				+ "GROUP BY TIMESTAMP ORDER BY TIMESTAMP ASC";
-	}
-	
-	/**
-	 * Query to 
-	 * @param tableName
-	 * @return
-	 */
-	private String getAttackRateForAddressQuery(String tableName) {
-		return "SELECT "
-				+ "TIMESTAMP, "
-				+ "COUNT(*) AS packetPerSecond FROM ("
-				+ "SELECT  FORMATDATETIME(TIMESTAMP, 'yyyy-MM-dd HH:mm:ss') as TIMESTAMP FROM " + tableName + " "
-				+ "WHERE SrcAddress = ? ) AS stamp "
-				+ "GROUP BY TIMESTAMP ORDER BY TIMESTAMP ASC";
-	}
-	
-	/**
 	 * Gets a list of attack rate (packets per second).
 	 * 
 	 * @param tableName Table name where to get the list from.
 	 * @return List of attack rate
 	 */
 	public ArrayList<RateContent> getAttackRate(String tableName, int minPacket, int minSecs, int rate) {
+		logger.info("Processing list of Attack rate for " + tableName);
+		long startTime = System.currentTimeMillis();
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
-		String query = getAttackRateQuery(tableName, minPacket, minSecs, rate);
+		String query = QueryFactory.getAttackRateQuery(tableName, minPacket, minSecs, rate);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
@@ -630,15 +553,19 @@ public class DbStore {
 		} catch (SQLException e) {
 			logger.error("Database failed", e);
 		}
+		long endTime = System.currentTimeMillis();
+		logger.info("Completed processing list of Attack rate for " + tableName + " in " + (endTime - startTime)/1000 + " seconds.");
 		return rateArr;
 	}
 	
 	public ArrayList<RateContent> getAttackRate(String tableName, byte[] address) {
+		logger.info("Processing list of Attack rate for " + tableName);
+		long startTime = System.currentTimeMillis();
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
-			PreparedStatement  ps = connection.prepareStatement(getAttackRateForAddressQuery(tableName));
+			PreparedStatement  ps = connection.prepareStatement(QueryFactory.getAttackRateForAddressQuery(tableName));
 			ps.setBytes(1, address);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
@@ -655,6 +582,8 @@ public class DbStore {
 				}
 			}
 		}
+		long endTime = System.currentTimeMillis();
+		logger.info("Completed processing list of Attack rate for " + tableName + " in " + (endTime - startTime)/1000 + " seconds.");
 		return rateArr;
 	}
 	
@@ -668,13 +597,13 @@ public class DbStore {
 		logger.info("Processing list of DOS victims for " + tableName + " including place of origin");
 		long startTime = System.currentTimeMillis();
 		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
-		String query = getDosVictimsQuery(tableName, minPacket, minSecs, rate);
+		String query = QueryFactory.getDosVictimsQuery(tableName, minPacket, minSecs, rate);
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			
 			Statement  statement = connection.createStatement();
-			PreparedStatement ps = connection.prepareStatement(getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
+			PreparedStatement ps = connection.prepareStatement(QueryFactory.getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
 			ResultSet rs = statement.executeQuery(query);
 			File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
 			DatabaseReader reader = null;
@@ -774,7 +703,7 @@ public class DbStore {
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			Statement  statement = connection.createStatement();
-			ResultSet rs = statement.executeQuery(getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
+			ResultSet rs = statement.executeQuery(QueryFactory.getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
 			while (rs.next()) {
 				resultArr.add(new CountryContent(
 						rs.getString("Country"),

@@ -151,6 +151,11 @@ public class MainApplicationController implements Initializable, MapComponentIni
 				progress.set(0);
 				progressTitle.set("Processing Pcap File...");
 				pa.processFile(progress);
+				progress.set(0);
+				progressTitle.set("Gathering affected addresses...");
+				pa.processVictims(progress);
+				progress.set(0);
+				progressTitle.set("Saving statistics...");
 				pa.setStats();
 				pa.cleanUp();
 				return null;
