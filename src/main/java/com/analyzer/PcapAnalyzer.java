@@ -50,22 +50,22 @@ public class PcapAnalyzer {
 	private String databaseName;
 	private File originalfile;
 	private long processTimeInMillis;
-	private HashMap<Thread, PcapReader> threadArr;
+	private HashMap<Thread, PcapFileLoader> threadArr;
 	
 	public PcapAnalyzer(File originalfile) {
 		this();
 		this.originalfile = originalfile;
 		databaseName = parseDbName(originalfile);
 		dbStore = new DbStore(databaseName, true);
-		threadArr = new HashMap<Thread, PcapReader>();
+		threadArr = new HashMap<Thread, PcapFileLoader>();
 		tmpDirName = System.getProperty("java.io.tmpdir") + "pcapTmp";
 		processTimeInMillis = 0;
 		files = new File[1];
 		files[0] = originalfile;
 		if (originalfile.length() > 1 * 1024 * 1024 * 1024) {
-			splitFile = true;
+			splitFile = false;
 	    } else {
-	    	splitFile = true;
+	    	splitFile = false;
 	    }
 	}
 	
@@ -131,7 +131,7 @@ public class PcapAnalyzer {
 	 * @param endTime
 	 */
 	public void setStats() {
-		Iterator<Entry<Thread, PcapReader>> iterator;
+		Iterator<Entry<Thread, PcapFileLoader>> iterator;
 		// Get statistics
 		long packetsProcessed = 0;
 		long packetsRead = 0;
@@ -147,7 +147,7 @@ public class PcapAnalyzer {
 		long icmpFloodPacketsRead = 0;
 		iterator = threadArr.entrySet().iterator();
 		while (iterator.hasNext()) {
-			PcapReader pr = iterator.next().getValue();
+			PcapFileLoader pr = iterator.next().getValue();
 			packetsProcessed = packetsProcessed + pr.getPacketProcessed();
 			packetsRead = packetsRead + pr.getPacketIndex();
 			ipV4PacketsRead = ipV4PacketsRead + pr.getIpV4Packets();
@@ -201,7 +201,7 @@ public class PcapAnalyzer {
 		for(File file: files){
 			logger.info("File name: " + file.getName());
 			AtomicInteger threadProgress = new AtomicInteger(0);
-			PcapReader pr = new PcapReader(file.getAbsolutePath(), databaseName, threadProgress, PACKET_COUNT_MAX);
+			PcapFileLoader pr = new PcapFileLoader(file.getAbsolutePath(), databaseName, threadProgress, PACKET_COUNT_MAX);
 			Thread th = new Thread(pr);
 			th.setName(file.getName());
 			th.start();
@@ -240,7 +240,7 @@ public class PcapAnalyzer {
         th1.start();
         
 		// Wait until every thread finishes
-		Iterator<Entry<Thread, PcapReader>> iterator = threadArr.entrySet().iterator();
+		Iterator<Entry<Thread, PcapFileLoader>> iterator = threadArr.entrySet().iterator();
 		try {
 			while (iterator.hasNext()) {
 				iterator.next().getKey().join();

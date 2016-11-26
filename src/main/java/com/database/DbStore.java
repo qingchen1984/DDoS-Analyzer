@@ -67,7 +67,7 @@ public class DbStore {
 	 */
 	public DbStore(String dbName, boolean createDB){
 		logger = LogManager.getLogger(DbStore.class);
-		url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";MV_STORE=FALSE;LOCK_TIMEOUT=10000";
+		url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";LOCK_TIMEOUT=90000";
         if (createDB) {
         	setupDB(dbName);
         } else {
@@ -252,6 +252,7 @@ public class DbStore {
 		st.executeUpdate("TRUNCATE TABLE " + UDP_FLOODING_TABLE_NAME);
 		st.executeUpdate("TRUNCATE TABLE " + ICMP_FLOODING_TABLE_NAME);
 		st.executeUpdate("TRUNCATE TABLE " + COUNTRY_STAT_TABLE_NAME);
+		st.executeUpdate("TRUNCATE TABLE " + SUMMARY_TABLE_NAME);
 		st.close();
 	}
 	

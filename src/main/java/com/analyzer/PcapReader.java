@@ -242,13 +242,7 @@ public class PcapReader implements Runnable {
 			}
 		}
 
-		Map<Short, List<IpV4Packet>> ipV4Fragments = new HashMap<Short, List<IpV4Packet>>();
-
 		Packet packet = null;
-		Timestamp tstmp = handle.getTimestamp();
-		byte[] srcAddress = null;
-		boolean ack = false;
-		boolean syn = false;
 		logger.info("Parsing pcap file: " + pcapFile);
 		long startTime = System.currentTimeMillis();
 		for (;;) {
@@ -258,106 +252,56 @@ public class PcapReader implements Runnable {
 			try {
 				packet = handle.getNextPacketEx();
 				packetIndex++;
-				
-				tstmp =handle.getTimestamp();
-				srcAddress = null;
-				ack = false;
-				syn = false;
-				
-				if (packet.contains(IpV4Packet.class)) {
-					ipV4Packets++;
-					IpV4Packet ipV4Packet = packet.get(IpV4Packet.class);
-					IpV4Header ip4header = ipV4Packet.getHeader();
-					srcAddress = ip4header.getSrcAddr().getAddress();
-					//handle fragments
-					if (packet.contains(FragmentedPacket.class)) {
-						short id = ip4header.getIdentification();
-						if (ipV4Fragments.containsKey(id)) {// add fragment to list
-							ipV4Fragments.get(id).add(ipV4Packet);
-						} else {// start a new fragmented list
-							List<IpV4Packet> list = new ArrayList<IpV4Packet>();
-							list.add(ipV4Packet.get(IpV4Packet.class));
-							ipV4Fragments.put(id, list);
+						
+				if (packet.contains(TcpPacket.class)) {
+					tcpPackets++;
+					TcpHeader tcpHeader = packet.get(TcpPacket.class).getHeader();
+					IpV4Header ip4header = packet.get(IpV4Packet.class).getHeader();
+					/**
+					 *  TCP flooding 
+					 *  when ACK and SYN are true 
+					 */
+					if (tcpHeader.getAck() && tcpHeader.getSyn()) { 
+						tcpFloodPackets ++;
+						dbStrore.addToBatch(DbStore.TCP_FLOODING_TABLE_NAME, handle.getTimestamp(), ip4header.getSrcAddr().getAddress());
+						packetProcessed++;
+						
+						if (tcpFloodPackets % 100000 == 0) {
+							dbStrore.commitBatch(DbStore.TCP_FLOODING_TABLE_NAME);
 						}
-						if (!ip4header.getMoreFragmentFlag()) {
-							ipV4Packet = IpV4Helper.defragment(ipV4Fragments.get(id));
-							ip4header = ipV4Packet.getHeader();
-							ipV4Fragments.remove(id);
+					}
+				} else if (packet.contains(IcmpV4CommonPacket.class)) {
+					icmpPackets++;
+					IcmpV4CommonHeader icmpHeader = packet.get(IcmpV4CommonPacket.class).getHeader();
+					/**
+					 *  UDP flooding 
+					 *  when finding a reply with an ICMP Destination Unreachable packet.
+					 */
+					if (icmpHeader.getType() == IcmpV4Type.DESTINATION_UNREACHABLE){
+						udpFloodPackets++;
+						IpV4Header ip4header = packet.get(IpV4Packet.class).getHeader();
+						dbStrore.addToBatch(DbStore.UDP_FLOODING_TABLE_NAME, handle.getTimestamp(), ip4header.getSrcAddr().getAddress());
+						packetProcessed++;
+						
+						if (udpFloodPackets % 100000 == 0) {
+							dbStrore.commitBatch(DbStore.UDP_FLOODING_TABLE_NAME);
 						}
 					} 
-					
-					if (!packet.contains(FragmentedPacket.class)) {
+					/**
+					 *  ICMP flooding 
+					 *  when finding an echo reply packet
+					 */
+					if(icmpHeader.getType() == IcmpV4Type.ECHO_REPLY){
+						icmpFloodPackets++;
+						IpV4Header ip4header = packet.get(IpV4Packet.class).getHeader();
+						dbStrore.addToBatch(DbStore.ICMP_FLOODING_TABLE_NAME, handle.getTimestamp(), ip4header.getSrcAddr().getAddress());
+						packetProcessed++;
 						
-						if (packet.contains(TcpPacket.class)) {
-							tcpPackets++;
-							TcpHeader tcpHeader = packet.get(TcpPacket.class).getHeader();
-							ack = tcpHeader.getAck();
-							syn = tcpHeader.getSyn();
-							
-							// TCP flooding when ACK and SYN are true 
-							if (ack == true && syn == true) { 
-								tcpFloodPackets ++;
-								dbStrore.addToBatch(DbStore.TCP_FLOODING_TABLE_NAME, tstmp, srcAddress);
-								packetProcessed++;
-								
-								if (tcpFloodPackets % 100000 == 0) {
-									dbStrore.commitBatch(DbStore.TCP_FLOODING_TABLE_NAME);
-								}
-							}
-						} else if (packet.contains(UdpPacket.class)) {
-							udpPackets++;
-						} else if (packet.contains(IcmpV4CommonPacket.class)) {
-							icmpPackets++;
-							IcmpV4CommonHeader icmpHeader = packet.get(IcmpV4CommonPacket.class).getHeader();
-							// UDP flooding when finding a reply with an ICMP Destination Unreachable packet.
-							if (icmpHeader.getType() == IcmpV4Type.DESTINATION_UNREACHABLE){
-								udpFloodPackets++;
-								dbStrore.addToBatch(DbStore.UDP_FLOODING_TABLE_NAME, tstmp, srcAddress);
-								packetProcessed++;
-								
-								if (udpFloodPackets % 100000 == 0) {
-									dbStrore.commitBatch(DbStore.UDP_FLOODING_TABLE_NAME);
-								}
-							} 
-							// ICMP flooding when finding an 
-							else if(icmpHeader.getType() == IcmpV4Type.ECHO_REPLY){
-								icmpFloodPackets++;
-								dbStrore.addToBatch(DbStore.ICMP_FLOODING_TABLE_NAME, tstmp, srcAddress);
-								packetProcessed++;
-								
-								if (icmpFloodPackets % 100000 == 0) {
-									dbStrore.commitBatch(DbStore.UDP_FLOODING_TABLE_NAME);
-								}
-							}
-						} else if (packet.contains(UnknownPacket.class)) {
-							unknownPackets++;
-						} else if (packet.contains(IllegalPacket.class)) {
-							illegalPackets++;
-						} else {
-							logger.warn("IPV4 Protocol not recognized: " + ip4header.getProtocol().toString() + " #" + packetIndex);
-							Iterator<Packet> iterator = packet.iterator();
-							while (iterator.hasNext()) {
-								logger.warn("Class found: " + iterator.next().getClass().getName());
-							}
+						if (icmpFloodPackets % 100000 == 0) {
+							dbStrore.commitBatch(DbStore.ICMP_FLOODING_TABLE_NAME);
 						}
 					}
-				} else if (packet.contains(IpV6Packet.class)) {
-					ipV4Packets++;
-					IpV6Packet ipV6Packet = packet.get(IpV6Packet.class);
-					IpV6Header ip6header = ipV6Packet.getHeader();
-					srcAddress = ip6header.getSrcAddr().getAddress();
-					if (ipV6Packet.contains(TcpPacket.class)) {
-						tcpPackets++;
-						//logger.info("IPV6 packet contains TCP");
-					} else if (ipV6Packet.contains(UdpPacket.class)) {
-						udpPackets++;
-						//logger.info("IPV6 packet contains UDP");
-					} else if (ipV6Packet.contains(IcmpV6CommonPacket.class)) {
-						icmpPackets++;
-					} else {
-						logger.warn("did not recognize IPV6 packet "  + " #" + packetIndex);
-					}
-				}
+				} 
 			} catch (EOFException e) {
 				logger.info("EOF");
 				break;
