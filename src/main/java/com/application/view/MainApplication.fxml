@@ -72,7 +72,7 @@
                      <children>
                         <Accordion>
                           <panes>
-                            <TitledPane animated="false" text="Overview">
+                            <TitledPane id="overview_TitledPane" animated="false" text="Overview">
                               <content>
                                     <VBox>
                                        <children>
@@ -180,16 +180,16 @@
                                   <RowConstraints />
                                   <RowConstraints />
                                   <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
                                   <RowConstraints minHeight="10.0" prefHeight="30.0" />
                                   <RowConstraints />
                                   <RowConstraints />
-                                  <RowConstraints />
-                                  <RowConstraints />
-                                  <RowConstraints />
-                                  <RowConstraints />
-                                  <RowConstraints />
-                                  <RowConstraints />
-                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
                                   <RowConstraints />
                                   <RowConstraints />
                                   <RowConstraints />
@@ -202,44 +202,37 @@
                                        </font></Label>
                                  	<Label text="File Name: " GridPane.rowIndex="1" />
                                  	<Label text="File Size" GridPane.rowIndex="2" />
-                                    <Label text="Parse Time" GridPane.rowIndex="3" />
-                                    <Label alignment="CENTER" prefHeight="17.0" prefWidth="208.0" text="Packet Statistics" textAlignment="CENTER" GridPane.rowIndex="4">
+                                    <Label text="File Parse Time" GridPane.rowIndex="3" />
+                                    <Label text="Database Process Time" GridPane.rowIndex="4" />
+                                    <Label alignment="CENTER" prefHeight="17.0" prefWidth="208.0" text="Packet Statistics" textAlignment="CENTER" GridPane.rowIndex="5">
                                     	<font>
                                           <Font name="System Bold" size="12.0" />
                                     	</font></Label>
-                                 	<Label text="Total Packets Found: " GridPane.rowIndex="5" />
-                                 	<Label text="IpV4 Packets Found: " GridPane.rowIndex="6" />
-                                 	<Label text="IpV6 Packets Found: " GridPane.rowIndex="7" />
-                                 	<Label text="TCP Packets Found: " GridPane.rowIndex="8" />
-                                 	<Label text="UDP Packets Found: " GridPane.rowIndex="9" />
-                                 	<Label text="ICMP Packets Found: " GridPane.rowIndex="10" />
-                                 	<Label text="Unknown Packets Found: " GridPane.rowIndex="11" />
-                                 	<Label text="Illegal Packets Found: " GridPane.rowIndex="12" />
-                                 	<Label alignment="CENTER" prefHeight="17.0" prefWidth="209.0" text="Packets with DOS possibilities" GridPane.rowIndex="13">
+                                 	<Label text="Total Packets Found: " GridPane.rowIndex="6" />
+                                 	<Label text="Total Packets Processed: " GridPane.rowIndex="7" />
+                                 	<Label text="Total TCP Flood Packets (possible): " GridPane.rowIndex="8" />
+                                    <Label text="Total UDP Flood Packets (possible): " GridPane.rowIndex="9" />
+                                    <Label text="Total ICMP Flood Packets (possible): " GridPane.rowIndex="10" />
+                                 	<Label alignment="CENTER" prefHeight="17.0" prefWidth="209.0" text="Addresses with DOS possibilities" GridPane.rowIndex="11">
                                     	<font>
                                           <Font name="System Bold" size="12.0" />
                                     	</font></Label>
-                                 	<Label text="Total Packets Processed: " GridPane.rowIndex="14" />
-                                 	<Label text="Total TCP Flood Packets (possible): " GridPane.rowIndex="15" />
-                                    <Label text="Total UDP Flood Packets (possible): " GridPane.rowIndex="16" />
-                                    <Label text="Total ICMP Flood Packets (possible): " GridPane.rowIndex="17" />
+                                 	<Label text="Total TCP Flood Sources (possible): " GridPane.rowIndex="12" />
+                                    <Label text="Total UDP Flood Sources (possible): " GridPane.rowIndex="13" />
+                                    <Label text="Total ICMP Flood Sources (possible): " GridPane.rowIndex="14" />
                                     
                                     <Label id="fileName" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                                     <Label id="fileSize" GridPane.columnIndex="1" GridPane.rowIndex="2" />
                                     <Label id="parseTime" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                                    <Label id="packetsFound" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                                 	<Label id="packetsIpV4" GridPane.columnIndex="1" GridPane.rowIndex="6" />
-                                 	<Label id="packetsIpV6" GridPane.columnIndex="1" GridPane.rowIndex="7" />
-                                 	<Label id="packetsTcp" GridPane.columnIndex="1" GridPane.rowIndex="8" />
-                                 	<Label id="packetsUdp" GridPane.columnIndex="1" GridPane.rowIndex="9" />
-                                 	<Label id="packetsIcmp" GridPane.columnIndex="1" GridPane.rowIndex="10" />
-                                 	<Label id="packetsUnknown" GridPane.columnIndex="1" GridPane.rowIndex="11" />
-                                 	<Label id="packetsIllegal" GridPane.columnIndex="1" GridPane.rowIndex="12" />
-                                 	<Label id="packetsProcessed" GridPane.columnIndex="1" GridPane.rowIndex="14" />
-                                 	<Label id="packetsTcpFlood" GridPane.columnIndex="1" GridPane.rowIndex="15" />
-                                    <Label id="packetsUdpFlood" GridPane.columnIndex="1" GridPane.rowIndex="16" />
-                                    <Label id="packetsIcmpFlood" GridPane.columnIndex="1" GridPane.rowIndex="17" />
-                                    
+                                    <Label id="processTime" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                                    <Label id="packetsFound" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                                 	<Label id="packetsProcessed" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+                                 	<Label id="packetsTcpFlood" GridPane.columnIndex="1" GridPane.rowIndex="8" />
+                                    <Label id="packetsUdpFlood" GridPane.columnIndex="1" GridPane.rowIndex="9" />
+                                    <Label id="packetsIcmpFlood" GridPane.columnIndex="1" GridPane.rowIndex="10" />
+                                    <Label id="sourcesTcpFlood" GridPane.columnIndex="1" GridPane.rowIndex="12" />
+                                    <Label id="sourcesUdpFlood" GridPane.columnIndex="1" GridPane.rowIndex="13" />
+                                    <Label id="sourcesIcmpFlood" GridPane.columnIndex="1" GridPane.rowIndex="14" />
                                  </children>
                               </GridPane>
                            </children>

@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -260,6 +261,7 @@ public class PcapAnalyzer {
 	 * @param progress
 	 */
 	public void processVictims(AtomicInteger progress) {
+		long startTime = System.currentTimeMillis();
 		// Save list of victims
 		progress.set(0);
 		dbStore.setVictimsTables(TCP_FLOODING_TABLE_NAME);
@@ -268,6 +270,9 @@ public class PcapAnalyzer {
 		progress.set(66);
 		dbStore.setVictimsTables(ICMP_FLOODING_TABLE_NAME);
 		progress.set(100);
+		
+		long endTime = System.currentTimeMillis();
+		processTimeInMillis = processTimeInMillis + (endTime - startTime);
 	}
 
 	/**
@@ -298,33 +303,54 @@ public class PcapAnalyzer {
 	 * @param minPacket
 	 * @param minSecs
 	 * @param rate
+	 * @return Elapsed time in milliseconds.
 	 */
-	public void loadProcessedData(String dbName, int minPacket, int minSecs, int rate) {
+	public long loadProcessedData(AtomicInteger progress, AtomicReference<String> progressTitle, 
+									String dbName, int minPacket, int minSecs, int rate) {
 		
+		long startTime = System.currentTimeMillis();
 		dbStore = new DbStore(parseDbName(new File(dbName)), false);
 		// Load statistics
+		
+		progressTitle.set("Getting Summary data");
+		progress.set(0);
 		dbStore.getSummaryTable(statistics);
 		
+		progressTitle.set("Getting List of DOS victims");
+		progress.set(10);
 		dosStatistics.put(TCP_FLOODING_TABLE_NAME, 
 				dbStore.getDosVictims(DbStore.TCP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		progress.set(20);
 		dosStatistics.put(UDP_FLOODING_TABLE_NAME, 
 				dbStore.getDosVictims(DbStore.UDP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		progress.set(30);
 		dosStatistics.put(ICMP_FLOODING_TABLE_NAME, 
 				dbStore.getDosVictims(DbStore.ICMP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
 		
+		progressTitle.set("Getting List of DOS attack rate");
+		progress.set(40);
 		rateStatistics.put(TCP_FLOODING_TABLE_NAME, 
 				dbStore.getAttackRate(DbStore.TCP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		progress.set(50);
 		rateStatistics.put(UDP_FLOODING_TABLE_NAME, 
 				dbStore.getAttackRate(DbStore.UDP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
+		progress.set(60);
 		rateStatistics.put(ICMP_FLOODING_TABLE_NAME, 
 				dbStore.getAttackRate(DbStore.ICMP_FLOODING_TABLE_NAME, minPacket, minSecs, rate));
 		
+		progressTitle.set("Getting List of countries affected");
+		progress.set(70);
 		countryStatistics.put(TCP_FLOODING_TABLE_NAME, 
 				dbStore.getCountryVictims(DbStore.TCP_FLOODING_TABLE_NAME));
+		progress.set(80);
 		countryStatistics.put(UDP_FLOODING_TABLE_NAME, 
 				dbStore.getCountryVictims(DbStore.UDP_FLOODING_TABLE_NAME));
+		progress.set(90);
 		countryStatistics.put(ICMP_FLOODING_TABLE_NAME, 
 				dbStore.getCountryVictims(DbStore.ICMP_FLOODING_TABLE_NAME));
+		progress.set(100);
+		long endTime = System.currentTimeMillis();
+		return endTime - startTime;
 	}
 	
 	/**

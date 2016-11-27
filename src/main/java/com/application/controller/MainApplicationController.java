@@ -59,6 +59,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -97,6 +98,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	private MapOptions mapOptions;
 	private PcapAnalyzer pcapAnalyzer;
 	private String dbName;
+	private long processTime;
 	private Logger logger;
 	
 	/**
@@ -199,6 +201,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		if(dbName == null) return;
 		
 		// Load data
+		AtomicInteger progress = new AtomicInteger(0);
 		AtomicReference<String> progressTitle = new AtomicReference<String>();
 		progressTitle.set("Processing information from database...");
 		startProgressIndicator(progressTitle, null);
@@ -208,7 +211,9 @@ public class MainApplicationController implements Initializable, MapComponentIni
             protected Void call() throws Exception {
             	pcapAnalyzer = new PcapAnalyzer();
             	PropertiesData propData =  new PropertiesData();
-    			pcapAnalyzer.loadProcessedData(
+            	processTime = pcapAnalyzer.loadProcessedData(
+    					progress,
+    					progressTitle,
     					dbName, 
     					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_PACKETS)),
     					Integer.valueOf(propData.getProperty(PropertiesData.MINIMUM_TIME)),
@@ -239,7 +244,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
     			icmpFloodCountryData = getPieChartData(
     					pcapAnalyzer.getCountryVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME));
     			
-    			showOverviewData();
     			return null;
             }
         };
@@ -247,6 +251,10 @@ public class MainApplicationController implements Initializable, MapComponentIni
         task.setOnSucceeded(e -> {
 			loadOverviewData(pcapAnalyzer);
 			stopProgressIndicator();
+			
+			((TitledPane) mainBorderPane.lookup("#overview_TitledPane")).setExpanded(true);
+			Button ob = ((Button) mainBorderPane.lookup("#overview_button"));
+			ob.fire();
         });
         Thread th = new Thread(task);
         th.setName("Saved File Processor");
@@ -325,21 +333,19 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		((Label) mainBorderPane.lookup("#fileName")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_NAME)));
 		String size = FileUtils.byteCountToDisplaySize((long) pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_SIZE));
 		((Label) mainBorderPane.lookup("#fileSize")).setText(size);
-		long millis = (long) pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_PROCESS_TIME);
-		String timeFormatted = DurationFormatUtils.formatDuration(millis, "HH:mm:ss");
-		((Label) mainBorderPane.lookup("#parseTime")).setText(timeFormatted);
+		long parseTimeInMillis = (long) pcapAnalyzer.getStatisticss(PcapAnalyzer.FILE_PROCESS_TIME);
+		((Label) mainBorderPane.lookup("#parseTime")).setText( DurationFormatUtils.formatDuration(parseTimeInMillis, "HH:mm:ss"));
+		((Label) mainBorderPane.lookup("#processTime")).setText( DurationFormatUtils.formatDuration(processTime, "HH:mm:ss"));
+		
 		((Label) mainBorderPane.lookup("#packetsFound")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_PACKETS_READ)));
-		((Label) mainBorderPane.lookup("#packetsIpV4")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_IPV4_PACKETS)));
-		((Label) mainBorderPane.lookup("#packetsIpV6")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_IPV6_PACKETS)));
-		((Label) mainBorderPane.lookup("#packetsTcp")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_TCP_PACKETS)));
-		((Label) mainBorderPane.lookup("#packetsUdp")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_UDP_PACKETS)));
-		((Label) mainBorderPane.lookup("#packetsIcmp")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_ICMP_PACKETS)));
-		((Label) mainBorderPane.lookup("#packetsUnknown")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_UNKNOWN_PACKETS)));
-		((Label) mainBorderPane.lookup("#packetsIllegal")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_ILLEGAL_PACKETS)));
 		((Label) mainBorderPane.lookup("#packetsProcessed")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_PACKETS_PROCESSED)));
 		((Label) mainBorderPane.lookup("#packetsTcpFlood")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_TCP_FLOOD_PACKETS)));
 		((Label) mainBorderPane.lookup("#packetsUdpFlood")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_UDP_FLOOD_PACKETS)));
 		((Label) mainBorderPane.lookup("#packetsIcmpFlood")).setText(String.valueOf(pcapAnalyzer.getStatisticss(PcapAnalyzer.TOTAL_ICMP_FLOOD_PACKETS)));
+		
+		((Label) mainBorderPane.lookup("#sourcesTcpFlood")).setText(String.valueOf(tcpFloodData.size()));
+		((Label) mainBorderPane.lookup("#sourcesUdpFlood")).setText(String.valueOf(udpFloodData.size()));
+		((Label) mainBorderPane.lookup("#sourcesIcmpFlood")).setText(String.valueOf(icmpFloodData.size()));
 	}
 	
 	/**
