@@ -204,7 +204,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		AtomicInteger progress = new AtomicInteger(0);
 		AtomicReference<String> progressTitle = new AtomicReference<String>();
 		progressTitle.set("Processing information from database...");
-		startProgressIndicator(progressTitle, null);
+		startProgressIndicator(progressTitle, progress);
 		
 		Task<Void> task = new Task<Void>() {
             @Override
