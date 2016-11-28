@@ -18,7 +18,7 @@ public class PropertiesData {
 	private Properties prop;
 	private InputStream input = null;
 	private OutputStream output = null;
-	private String fileLocation = "src/main/resources/config.properties";
+	private String fileLocation = "config.properties";
 	public static final String MINIMUM_PACKETS = "minimumPackets";
 	public static final String MINIMUM_TIME = "minimumTime";
 	public static final String MINIMUM_RATE = "minimumRate";
@@ -31,7 +31,7 @@ public class PropertiesData {
 		prop = new Properties();
 		try {
 			//
-			input = new FileInputStream(fileLocation);
+			input = this.getClass().getClassLoader().getResourceAsStream(fileLocation);
 			// load a properties file
 			prop.load(input);
 			//prop..getClass().
