@@ -3,6 +3,7 @@ package com.database;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -593,16 +594,18 @@ public class DbStore {
 		ArrayList<RowContent> resultArr = new ArrayList<RowContent>();
 		String query = QueryFactory.getDosVictimsQuery(tableName, minPacket, minSecs, rate);
 		Connection connection = null;
+		Statement  statement = null;
+		PreparedStatement ps = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
 			
-			Statement  statement = connection.createStatement();
-			PreparedStatement ps = connection.prepareStatement(QueryFactory.getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
+			statement = connection.createStatement();
+			ps = connection.prepareStatement(QueryFactory.getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
 			ResultSet rs = statement.executeQuery(query);
-			File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
+			InputStream geoDbStream = this.getClass().getClassLoader().getResourceAsStream("GeoLite2-City/GeoLite2-City.mmdb");
 			DatabaseReader reader = null;
 			try {
-				reader = new DatabaseReader.Builder(dbFile).build();
+				reader = new DatabaseReader.Builder(geoDbStream).build();
 			} catch (IOException e) {
 				logger.error("Error found while loading Geo-location database", e.getMessage());
 			}
@@ -668,6 +671,20 @@ public class DbStore {
 			logger.error("Database failed", e);
 			return null;
 		} finally {
+			if (statement != null) {
+				try {
+					statement.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
+			if (ps != null) {
+				try {
+					ps.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
 			if (connection != null) {
 				try {
 					connection.close();

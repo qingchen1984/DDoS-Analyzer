@@ -21,7 +21,9 @@ repositories {
     maven {
         url "http://clojars.org/repo/"
     }
-    
+    flatDir {
+       dirs 'libs'
+   }
 }
 
 // In this section you declare the dependencies for your production and test code
@@ -38,7 +40,10 @@ dependencies {
 	compile group: 'com.vividsolutions', name: 'jts', version: '1.11'
 	compile group: 'com.lynden', name: 'GMapsFX', version: '2.0.9'
 	compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.0'
-	
+	//compile fileTree(dir: 'lib/SplitCap_2-1', include: '*.exe')
+	//compile fileTree(dir: 'lib/SplitCap_2-1', include: '*.dll')
+    compile fileTree(dir: 'lib', include: '**/*.*')
+    
 	
 
     // Declare the dependency for your favourite test framework you want to use in your tests.
@@ -51,7 +56,7 @@ dependencies {
 sourceSets {
   main {
     resources {
-        srcDirs = ["src/main/java","src/main/resources","lib"]
+        srcDirs = ["src/main/java","src/main/resources","lib/"]
         includes = ["**/*.*"]
     }
   }
