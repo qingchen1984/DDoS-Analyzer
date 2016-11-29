@@ -7,11 +7,15 @@
  * user guide available at https://docs.gradle.org/2.13/userguide/tutorial_java_projects.html
  */
 
-// Apply the java plugin to add support for Java
-apply plugin: 'java'
-apply plugin: 'application'
+// Apply the plugins
+plugins {
+	id 'java'
+	id 'application'
+	id 'eclipse'
+}
 
 mainClassName = 'com.application.view.Main'
+project.ext.set('nativeLibsDir', "$buildDir/libs/natives")
 
 // In this section you declare where to find the dependencies of your project
 repositories {
@@ -43,8 +47,7 @@ dependencies {
 	//compile fileTree(dir: 'lib/SplitCap_2-1', include: '*.exe')
 	//compile fileTree(dir: 'lib/SplitCap_2-1', include: '*.dll')
     compile fileTree(dir: 'lib', include: '**/*.*')
-    
-	
+    runtime fileTree(dir: 'lib/jnetpcapNative', include: '*.dll');
 
     // Declare the dependency for your favourite test framework you want to use in your tests.
     // TestNG is also supported by the Gradle Test task. Just change the
@@ -60,4 +63,26 @@ sourceSets {
         includes = ["**/*.*"]
     }
   }
+}
+
+/* Copy the native files */
+task copyNativeDeps(type: Copy) {
+    from (configurations.compile+configurations.testCompile) {
+        include "*.dll"
+    }
+    into file(project.nativeLibsDir)
+}
+
+run.dependsOn copyNativeDeps
+
+/* Make sure we setup the tests to actually copy 
+ * the native files and set the paths correctly. */
+run {
+    //dependsOn copyNativeDeps
+    systemProperty "java.library.path", project.nativeLibsDir
+}
+
+installApp {
+	dependsOn copyNativeDeps
+    //systemProperty "java.library.path", project.nativeLibsDir
 }

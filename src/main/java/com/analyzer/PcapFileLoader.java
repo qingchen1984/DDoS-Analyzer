@@ -45,7 +45,7 @@ public class PcapFileLoader  implements Runnable {
 	 * @param packetMax
 	 */
 	public PcapFileLoader(String pcapFileLocation, String dbName, AtomicInteger progress, int packetMax) {
-		logger = LogManager.getLogger(PcapReader.class);
+		logger = LogManager.getLogger(PcapFileLoader.class);
 		pcapFile = pcapFileLocation;
 		packetIndex = 0;
 		packetProcessed = 0;
