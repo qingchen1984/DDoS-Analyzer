@@ -68,7 +68,7 @@ public class DbStore {
 	 */
 	public DbStore(String dbName, boolean createDB){
 		logger = LogManager.getLogger(DbStore.class);
-		url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";LOCK_TIMEOUT=90000;MV_STORE=FALSE";
+		url = "jdbc:h2:./database-results/"+dbName+";LOCK_TIMEOUT=90000;MV_STORE=FALSE";
         if (createDB) {
         	setupDB(dbName);
         } else {
@@ -769,7 +769,7 @@ public class DbStore {
 			for(String dbName : files) {
 				dbName = dbName.replace(".mv.db", "");
 				dbName = dbName.replace(".h2.db", "");
-				String url = "jdbc:h2:~/DDoS-Analyzer/database-results/"+dbName+";MV_STORE=FALSE";
+				String url = "jdbc:h2:./database-results/"+dbName+";MV_STORE=FALSE";
 				try {
 					connection = DriverManager.getConnection(url, USER, PASSWORD);
 					String fileName = getFileNameFromDb(connection, dbName);
