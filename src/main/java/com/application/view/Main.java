@@ -1,5 +1,10 @@
 package com.application.view;
 	
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Locale;
+import java.util.StringTokenizer;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -11,15 +16,28 @@ import javafx.stage.Stage;
 
 
 public class Main extends Application {
+	private static String OS = null;
 	public static void main(String[] args) {
 		Logger logger = LogManager.getLogger(Main.class);
-		String nativeDll = Main.class.getClassLoader().getResource("jnetpcapNative/jnetpcap.dll").getPath();
-		try {
-			//System.load(nativeDll);
-		} catch (Exception e) {
-			logger.fatal("Unable to load the following library" + nativeDll, e );
-			return;
-		}
+		ClassLoader cl = ClassLoader.getSystemClassLoader();
+
+        URL[] urls = ((URLClassLoader)cl).getURLs();
+
+        for(URL url: urls){
+        	String systemClass = url.getFile();
+        	if (isWindows() && systemClass.endsWith("jnetpcap.dll")) {
+        		System.out.println(systemClass);
+        		try {
+        			System.load(systemClass);
+        			break;
+        		} catch (Exception e) {
+        			System.out.println("Error found while loading jnetpcap.dll");
+        			e.printStackTrace();
+        		}
+        	}
+        	
+        }
+		
         launch(args);
     }
 
@@ -29,5 +47,20 @@ public class Main extends Application {
         primaryStage.setTitle("Darknet PCAP Analyzer");
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
+    }
+    
+    public static String getOsName()
+    {
+       if(OS == null) { OS = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH); }
+       return OS;
+    }
+    
+    public static boolean isWindows()
+    {
+       return getOsName().indexOf("win") >= 0;
+    }
+
+    public static boolean isUnix() {
+    	return getOsName().indexOf("nux") >= 0;
     }
 }
