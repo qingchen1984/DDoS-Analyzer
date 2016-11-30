@@ -208,7 +208,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		
 		Task<Void> task = new Task<Void>() {
             @Override
-            protected Void call() throws Exception {
+            protected Void call() {
             	pcapAnalyzer = new PcapAnalyzer();
             	PropertiesData propData =  new PropertiesData();
             	processTime = pcapAnalyzer.loadProcessedData(
@@ -243,7 +243,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
     					pcapAnalyzer.getCountryVictims(PcapAnalyzer.UDP_FLOODING_TABLE_NAME));
     			icmpFloodCountryData = getPieChartData(
     					pcapAnalyzer.getCountryVictims(PcapAnalyzer.ICMP_FLOODING_TABLE_NAME));
-    			
     			return null;
             }
         };
@@ -267,9 +266,11 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @param udppRate Original plot points to be converted.
 	 * @return JavaFX-PlotChart-friendly array.
 	 */
-	private ObservableList<XYChart.Data<String, Number>> convertPlotPoints(ArrayList<RateContent> udppRate) {
+	private static ObservableList<XYChart.Data<String, Number>> convertPlotPoints(ArrayList<RateContent> rate) {
+		Logger logger = LogManager.getLogger(MainApplicationController.class);
+		logger.debug("Attempting to convert from array to plot points.");
 		ObservableList<XYChart.Data<String, Number>> ol = FXCollections.observableArrayList();
-		Iterator<RateContent> iUdp = udppRate.iterator();
+		Iterator<RateContent> iUdp = rate.iterator();
 		while (iUdp.hasNext()) {
 			RateContent rc1 = iUdp.next();
 			ol.add(new XYChart.Data<String, Number>((new Timestamp(rc1.getTime())).toString(), rc1.getRate()));
@@ -283,9 +284,14 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @param tcpRate Original points to be simplified.
 	 * @return Simplified JavaFX-PlotChart-friendly array.
 	 */
-	private ObservableList<Data<String, Number>>  simplifyPlotPoints(ArrayList<RateContent> plotPoints) {
+	private static ObservableList<Data<String, Number>>  simplifyPlotPoints(ArrayList<RateContent> plotPoints) {
+		Logger logger = LogManager.getLogger(MainApplicationController.class);
+		logger.debug("Attempting to simplify plot points accoring to Ramer–Douglas–Peucker algorithm.");
 		int size = plotPoints.size();
-		if (size < 500) return convertPlotPoints(plotPoints);
+		if (size < 500) {
+			logger.debug("No need to simplify. size is: " + size);
+			return convertPlotPoints(plotPoints);
+		}
 		
 		double distanceTolerance = size / 200;
 		//logger.debug("Distance Tolerance to use: " + distanceTolerance);
@@ -513,7 +519,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @param countryData list containing countries and packets affected.
 	 * @return data processed to be used in a pie chart.
 	 */
-	private ObservableList<PieChart.Data> getPieChartData(ArrayList<CountryContent> countryData) {
+	private static ObservableList<PieChart.Data> getPieChartData(ArrayList<CountryContent> countryData) {
 		ObservableList<PieChart.Data> response = FXCollections.observableArrayList();
 		Iterator<CountryContent> i = countryData.iterator();
 		while(i.hasNext()) {
@@ -594,9 +600,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		tcpFloodCountryData = FXCollections.observableArrayList();
 		udpFloodCountryData = FXCollections.observableArrayList();
 		icmpFloodCountryData = FXCollections.observableArrayList();
-		
-		//logger.debug("Completed the Program initialization");
-		 
 	}
 
 	/* (non-Javadoc)
@@ -605,7 +608,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	@Override
 	public void mapInitialized() {
 		// For some reason the logger has to be initialized after the map was initialized
-		logger = LogManager.getLogger();
+		logger = LogManager.getLogger(MainApplicationController.class);
 		
 		 //Set the initial properties of the map.
 		mapOptions = new MapOptions();
