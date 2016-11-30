@@ -309,6 +309,9 @@ public class PcapAnalyzer {
 									String dbName, int minPacket, int minSecs, int rate) {
 		
 		long startTime = System.currentTimeMillis();
+		rateStatistics = new HashMap<String,ArrayList<RateContent>>();
+		dosStatistics = new HashMap<String,ArrayList<RowContent>>();
+		countryStatistics = new HashMap<String,ArrayList<CountryContent>>();
 		dbStore = new DbStore(parseDbName(new File(dbName)), false);
 		// Load statistics
 		
@@ -349,8 +352,9 @@ public class PcapAnalyzer {
 		countryStatistics.put(ICMP_FLOODING_TABLE_NAME, 
 				dbStore.getCountryVictims(DbStore.ICMP_FLOODING_TABLE_NAME));
 		progress.set(100);
-		long endTime = System.currentTimeMillis();
-		return endTime - startTime;
+		long time = System.currentTimeMillis() - startTime;
+		logger.info("Completed gathering List of DOS victims, countries afftected and attack rate in " + time/1000 + " seconds.");
+		return time;
 	}
 	
 	/**
@@ -360,6 +364,7 @@ public class PcapAnalyzer {
 	 * @return
 	 */
 	public Object getStatisticss(String key) {
+		logger.debug("Returning statistics for " + key);
 		return statistics.get(key);
 	}
 	
@@ -370,6 +375,7 @@ public class PcapAnalyzer {
 	 * @return
 	 */
 	public ArrayList<RowContent> getDosVictims(String key) {
+		logger.debug("Returning DOS Victims for " + key);
 		return dosStatistics.get(key);
 	}
 	
@@ -380,6 +386,7 @@ public class PcapAnalyzer {
 	 * @return
 	 */
 	public ArrayList<CountryContent> getCountryVictims(String key) {
+		logger.debug("Returning DOS country Victims for " + key);
 		return countryStatistics.get(key);
 	}
 	
@@ -390,6 +397,7 @@ public class PcapAnalyzer {
 	 * @return
 	 */
 	public ArrayList<RateContent> getAttackRate(String key) {
+		logger.debug("Returning DOS attack rate for " + key);
 		return rateStatistics.get(key);
 	}
 	
