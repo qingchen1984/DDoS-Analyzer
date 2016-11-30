@@ -26,7 +26,6 @@ public class Main extends Application {
         for(URL url: urls){
         	String systemClass = url.getFile();
         	if (isWindows() && systemClass.endsWith("jnetpcap.dll")) {
-        		System.out.println(systemClass);
         		try {
         			System.load(systemClass);
         			break;
