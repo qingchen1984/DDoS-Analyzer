@@ -605,16 +605,16 @@ public class DbStore {
 			InputStream geoDbStream = null;
 			DatabaseReader reader = null;
 			try {
+				// Should work when running as stand alone or Gradle
 				geoDbStream = this.getClass().getClassLoader().getResourceAsStream("GeoLite2-City/GeoLite2-City.mmdb");
 				reader = new DatabaseReader.Builder(geoDbStream).build();
 			} catch (Exception e) {
 				try {
-					logger.error("Error found while loading Geo-location database, trying another one", e.getMessage());
+					//trying backup, should work when running from Eclipse.
 					File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
 					reader = new DatabaseReader.Builder(dbFile).build();
-					logger.error("Error found while loading Geo-location database", e.getMessage());
 				} catch (Exception ex) {
-					logger.error("Error found while loading Geo-location database during the backup ", e.getMessage());
+					logger.error("Error found while loading Geo-location database", e.getMessage(), ex.getMessage());
 				}
 			}
 			CityResponse response;
