@@ -5,6 +5,7 @@ import java.net.URLClassLoader;
 import java.util.Locale;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -40,6 +41,11 @@ public class Main extends Application {
         primaryStage.setTitle("Darknet PCAP Analyzer");
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
+        primaryStage.setOnCloseRequest(e -> {
+        	Platform.exit();
+        	System.exit(0);
+        });
+
     }
     
     public static String getOsName()
