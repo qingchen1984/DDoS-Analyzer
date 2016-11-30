@@ -3,10 +3,6 @@ package com.application.view;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Locale;
-import java.util.StringTokenizer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -18,9 +14,7 @@ import javafx.stage.Stage;
 public class Main extends Application {
 	private static String OS = null;
 	public static void main(String[] args) {
-		Logger logger = LogManager.getLogger(Main.class);
 		ClassLoader cl = ClassLoader.getSystemClassLoader();
-
         URL[] urls = ((URLClassLoader)cl).getURLs();
 
         for(URL url: urls){
