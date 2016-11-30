@@ -602,12 +602,20 @@ public class DbStore {
 			statement = connection.createStatement();
 			ps = connection.prepareStatement(QueryFactory.getInsertCountryStatsQuery(COUNTRY_STAT_TABLE_NAME));
 			ResultSet rs = statement.executeQuery(query);
-			InputStream geoDbStream = this.getClass().getClassLoader().getResourceAsStream("GeoLite2-City/GeoLite2-City.mmdb");
+			InputStream geoDbStream = null;
 			DatabaseReader reader = null;
 			try {
+				geoDbStream = this.getClass().getClassLoader().getResourceAsStream("GeoLite2-City/GeoLite2-City.mmdb");
 				reader = new DatabaseReader.Builder(geoDbStream).build();
-			} catch (IOException e) {
-				logger.error("Error found while loading Geo-location database", e.getMessage());
+			} catch (Exception e) {
+				try {
+					logger.error("Error found while loading Geo-location database, trying another one", e.getMessage());
+					File dbFile = new File("lib/GeoLite2-City/GeoLite2-City.mmdb");
+					reader = new DatabaseReader.Builder(dbFile).build();
+					logger.error("Error found while loading Geo-location database", e.getMessage());
+				} catch (Exception ex) {
+					logger.error("Error found while loading Geo-location database during the backup ", e.getMessage());
+				}
 			}
 			CityResponse response;
 			String country;
