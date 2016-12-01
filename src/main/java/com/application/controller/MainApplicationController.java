@@ -97,7 +97,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	private HashMap<String, TableColumn<RowContent, String>> columnMap;
 	private MapOptions mapOptions;
 	private PcapAnalyzer pcapAnalyzer;
-	private String dbName;
 	private long processTime;
 	private Logger logger;
 	
@@ -166,6 +165,8 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		task.setOnSucceeded(e -> {
 			progress.set(-1);
 			stopProgressIndicator();
+			// Load the data from the DB
+			loadPreviouslyProcessedData(f.getName());
         });
         Thread th = new Thread(task);
         th.setName("File Processor");
@@ -179,7 +180,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
 	 * @param event
 	 */
 	public void openPreviouslyProcessedData(ActionEvent event) {
-		dbName = null;
+		String dbName = null;
 		try {
 			// Launch the File History view
 			Parent root1  = FXMLLoader.load(getClass().getResource("/com/application/view/DatabaseNames.fxml"));
@@ -200,6 +201,15 @@ public class MainApplicationController implements Initializable, MapComponentIni
 		if(dbName == null) return;
 		
 		// Load data
+		loadPreviouslyProcessedData(dbName);
+	}
+
+	/**
+	 * Loads data from the DB from the given file name was processed.
+	 * 
+	 * @param dbName File name that was previously processed.
+	 */
+	private void loadPreviouslyProcessedData(String dbName) {
 		AtomicInteger progress = new AtomicInteger(0);
 		AtomicReference<String> progressTitle = new AtomicReference<String>();
 		progressTitle.set("Processing information from database...");
