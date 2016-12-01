@@ -164,7 +164,6 @@ public class MainApplicationController implements Initializable, MapComponentIni
             }
 		};
 		task.setOnSucceeded(e -> {
-			//loadOverviewData(pcapAnalyzer);
 			progress.set(-1);
 			stopProgressIndicator();
         });
@@ -248,6 +247,7 @@ public class MainApplicationController implements Initializable, MapComponentIni
         };
         
         task.setOnSucceeded(e -> {
+        	progress.set(-1);
 			loadOverviewData(pcapAnalyzer);
 			stopProgressIndicator();
 			

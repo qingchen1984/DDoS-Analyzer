@@ -42,20 +42,19 @@ public class Main extends Application {
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
         primaryStage.setOnCloseRequest(e -> {
+        	System.out.println("Closing program. Good bye!");
         	Platform.exit();
         	System.exit(0);
         });
 
     }
     
-    public static String getOsName()
-    {
+    public static String getOsName()  {
        if(OS == null) { OS = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH); }
        return OS;
     }
     
-    public static boolean isWindows()
-    {
+    public static boolean isWindows() {
        return getOsName().indexOf("win") >= 0;
     }
 

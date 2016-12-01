@@ -490,9 +490,10 @@ public class DbStore {
 		boolean result = false;
 		String query = "SELECT * FROM " + SUMMARY_TABLE_NAME + " LIMIT 1";
 		Connection connection = null;
+		Statement  statement = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
-			Statement  statement = connection.createStatement();
+			statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(query);
 			if(rs.next()) {
 				statistics.put(FILE_NAME, rs.getString(FILE_NAME));
@@ -515,6 +516,13 @@ public class DbStore {
 		} catch (SQLException e) {
 			logger.error("Database failed", e);
 		} finally {
+			if (statement != null) {
+				try {
+					statement.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
 			if (connection != null) {
 				try {
 					connection.close();
@@ -538,15 +546,31 @@ public class DbStore {
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
 		String query = QueryFactory.getAttackRateQuery(tableName, minPacket, minSecs, rate);
 		Connection connection = null;
+		Statement  statement = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
-			Statement  statement = connection.createStatement();
+			statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(query);
 			while (rs.next()) {
 				rateArr.add(new RateContent(rs.getTimestamp("Timestamp").getTime(), rs.getInt("packetPerSecond")));
 			}
 		} catch (SQLException e) {
 			logger.error("Database failed", e);
+		} finally {
+			if (statement != null) {
+				try {
+					statement.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
 		}
 		long endTime = System.currentTimeMillis();
 		logger.info("Completed processing list of Attack rate for " + tableName + " in " + (endTime - startTime)/1000 + " seconds.");
@@ -558,9 +582,10 @@ public class DbStore {
 		long startTime = System.currentTimeMillis();
 		ArrayList<RateContent> rateArr = new ArrayList<RateContent>();
 		Connection connection = null;
+		PreparedStatement  ps = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
-			PreparedStatement  ps = connection.prepareStatement(QueryFactory.getAttackRateForAddressQuery(tableName));
+			ps = connection.prepareStatement(QueryFactory.getAttackRateForAddressQuery(tableName));
 			ps.setBytes(1, address);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
@@ -569,6 +594,13 @@ public class DbStore {
 		} catch (Exception e) {
 			logger.error("Database failed", e);
 		} finally {
+			if (ps != null) {
+				try {
+					ps.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
 			if (connection != null) {
 				try {
 					connection.close();
@@ -719,9 +751,10 @@ public class DbStore {
 		ArrayList<CountryContent> resultArr = new ArrayList<CountryContent>();
 		
 		Connection connection = null;
+		Statement  statement = null;
 		try {
 			connection = DriverManager.getConnection(url, USER, PASSWORD);
-			Statement  statement = connection.createStatement();
+			statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(QueryFactory.getSelectCountryStatsQuery(COUNTRY_STAT_TABLE_NAME, tableName));
 			while (rs.next()) {
 				resultArr.add(new CountryContent(
@@ -734,6 +767,13 @@ public class DbStore {
 			logger.error("Database failed", e);
 			return null;
 		} finally {
+			if (statement != null) {
+				try {
+					statement.close();
+				} catch (SQLException e) {
+					logger.error("Database failed", e);
+				}
+			}
 			if (connection != null) {
 				try {
 					connection.close();
@@ -803,7 +843,7 @@ public class DbStore {
 	private static String getFileNameFromDb(Connection connection, String dbName) {
 		String fileName = null;
 		String query= "SELECT fileName FROM summary LIMIT 1";
-		Statement statement;
+		Statement statement = null;
 		try {
 			statement = connection.createStatement();
 			ResultSet rs = statement.executeQuery(query);
@@ -812,6 +852,14 @@ public class DbStore {
 			}
 		} catch (SQLException e) {
 			// Exceptions expected for DBs not recognized.
+		} finally {
+			if(statement != null) {
+				try {
+					statement.close();
+				} catch (SQLException e) {
+					LogManager.getLogger(DbStore.class).error("Database failed", e);
+				}
+			}
 		}
 		return fileName;
 	}
