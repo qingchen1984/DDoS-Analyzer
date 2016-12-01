@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.lynden.gmapsfx.GoogleMapView?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.control.Accordion?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.effect.Blend?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane fx:id="mainBorderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="642.0" stylesheets="@DarkTheme.css" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.application.controller.MainApplicationController">
+   <top>
+      <HBox BorderPane.alignment="CENTER">
+         <children>
+            <MenuBar HBox.hgrow="ALWAYS">
+              <menus>
+                <Menu mnemonicParsing="false" text="File">
+                  <items>
+                        <MenuItem mnemonicParsing="false" onAction="#openFile" text="Open Pcap File" />
+                        <MenuItem mnemonicParsing="false" onAction="#openPreviouslyProcessedData" text="Open previous data" />
+                    <MenuItem fx:id="closeButton" mnemonicParsing="false" onAction="#closeApplication" text="Close" />
+                  </items>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Edit">
+                  <items>
+                    <MenuItem mnemonicParsing="false" onAction="#openPreferences" text="Preferences" />
+                  </items>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Help">
+                  <items>
+                    <MenuItem mnemonicParsing="false" text="About" />
+                  </items>
+                </Menu>
+              </menus>
+            </MenuBar>
+         </children>
+      </HBox>
+   </top>
+   <bottom>
+      <HBox alignment="TOP_RIGHT" BorderPane.alignment="CENTER">
+         <children>
+            <Label fx:id="progressLabel" prefHeight="17.0" prefWidth="259.0" />
+            <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
+         </children>
+      </HBox>
+   </bottom>
+   <center>
+      <SplitPane dividerPositions="0.29797979797979796" prefHeight="160.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <items>
+          <AnchorPane>
+               <children>
+                  <VBox alignment="TOP_CENTER" prefHeight="355.0" prefWidth="175.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                     <children>
+                        <Accordion>
+                          <panes>
+                            <TitledPane id="overview_TitledPane" animated="false" text="Overview">
+                              <content>
+                                    <VBox>
+                                       <children>
+                                          <AnchorPane VBox.vgrow="NEVER">
+                                             <children>
+                                              <Button id="overview_button" alignment="CENTER" layoutX="9.600000381469727" layoutY="9.600000381469727" mnemonicParsing="false" onAction="#showOverviewData" prefHeight="26.0" prefWidth="176.0" styleClass="view" text="Summary" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane VBox.vgrow="NEVER">
+                                             <children>
+                                                <Button id="dos_rate_button" alignment="CENTER" mnemonicParsing="false" onAction="#showDosRate" prefHeight="25.0" prefWidth="166.0" styleClass="view" text="DOS rate" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                       </children>
+                                    </VBox>
+                              </content>
+                            </TitledPane>
+                            <TitledPane animated="false" text="TCP Flood Info">
+                              <content>
+                                    <VBox prefHeight="200.0" prefWidth="206.0">
+                                       <children>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="tcp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="180.0" text="TCP Flood Table" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="tcp_flood_pie_chart_button" mnemonicParsing="false" onAction="#showCountryPieChart" prefHeight="25.0" prefWidth="176.0" text="TCP Flood Country" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="tcp_flood_map_button" mnemonicParsing="false" onAction="#showMap" prefHeight="25.0" prefWidth="176.0" text="TCP Flood Map" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                       </children>
+                                    </VBox>
+                              </content>
+                            </TitledPane>
+                            <TitledPane animated="false" text="UDP Flood Info">
+                              <content>
+                                    <VBox prefHeight="180.0" prefWidth="186.0">
+                                       <children>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="udp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="179.0" text="UDP Flood Table" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="udp_flood_pie_chart_button" mnemonicParsing="false" onAction="#showCountryPieChart" prefHeight="25.0" prefWidth="175.0" text="UDP Flood Country" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="udp_flood_map_button" mnemonicParsing="false" onAction="#showMap" prefHeight="25.0" prefWidth="175.0" text="UDP Flood Map" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                       </children>
+                                    </VBox>
+                              </content>
+                            </TitledPane>
+                              <TitledPane animated="false" layoutX="10.0" layoutY="60.0" text="ICMP Flood Info">
+                                 <content>
+                                    <VBox prefHeight="200.0" prefWidth="186.0">
+                                       <children>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="icmp_flood_table_button" mnemonicParsing="false" onAction="#showFloodTable" prefHeight="25.0" prefWidth="179.0" text="ICMP Flood Table" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="icmp_flood_pie_chart_button" mnemonicParsing="false" onAction="#showCountryPieChart" prefHeight="25.0" prefWidth="175.0" text="ICMP Flood Country" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                          <AnchorPane>
+                                             <children>
+                                                <Button id="icmp_flood_map_button" mnemonicParsing="false" onAction="#showMap" prefHeight="25.0" prefWidth="175.0" text="ICMP Flood Map" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                             </children>
+                                          </AnchorPane>
+                                       </children>
+                                    </VBox>
+                                 </content>
+                              </TitledPane>
+                          </panes>
+                        </Accordion>
+                     </children>
+                  </VBox>
+               </children></AnchorPane>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
+               <children>
+                  <StackPane id="result_stack" fx:id="resultStack" layoutX="14.0" layoutY="60.0" prefHeight="355.0" prefWidth="446.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                     <children>
+                        <AnchorPane id="overview_pane">
+                           <children>
+                              <GridPane layoutY="-48.0" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <columnConstraints>
+                                  <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                  <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                </columnConstraints>
+                                <rowConstraints>
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                  <RowConstraints />
+                                </rowConstraints>
+                                 <children>
+                                 	<Label alignment="CENTER" prefHeight="17.0" prefWidth="211.0" text="File Statistics" textAlignment="CENTER" GridPane.rowIndex="0">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font></Label>
+                                 	<Label text="File Name: " GridPane.rowIndex="1" />
+                                 	<Label text="File Size" GridPane.rowIndex="2" />
+                                    <Label text="File Parse Time" GridPane.rowIndex="3" />
+                                    <Label text="Database Process Time" GridPane.rowIndex="4" />
+                                    <Label alignment="CENTER" prefHeight="17.0" prefWidth="208.0" text="Packet Statistics" textAlignment="CENTER" GridPane.rowIndex="5">
+                                    	<font>
+                                          <Font name="System Bold" size="12.0" />
+                                    	</font></Label>
+                                 	<Label text="Total Packets Found: " GridPane.rowIndex="6" />
+                                 	<Label text="Total Packets Processed: " GridPane.rowIndex="7" />
+                                 	<Label text="Total TCP Flood Packets (possible): " GridPane.rowIndex="8" />
+                                    <Label text="Total UDP Flood Packets (possible): " GridPane.rowIndex="9" />
+                                    <Label text="Total ICMP Flood Packets (possible): " GridPane.rowIndex="10" />
+                                 	<Label alignment="CENTER" prefHeight="17.0" prefWidth="209.0" text="Addresses with DOS possibilities" GridPane.rowIndex="11">
+                                    	<font>
+                                          <Font name="System Bold" size="12.0" />
+                                    	</font></Label>
+                                 	<Label text="Total TCP Flood Sources (possible): " GridPane.rowIndex="12" />
+                                    <Label text="Total UDP Flood Sources (possible): " GridPane.rowIndex="13" />
+                                    <Label text="Total ICMP Flood Sources (possible): " GridPane.rowIndex="14" />
+                                    
+                                    <Label id="fileName" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                    <Label id="fileSize" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                    <Label id="parseTime" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                    <Label id="processTime" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                                    <Label id="packetsFound" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                                 	<Label id="packetsProcessed" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+                                 	<Label id="packetsTcpFlood" GridPane.columnIndex="1" GridPane.rowIndex="8" />
+                                    <Label id="packetsUdpFlood" GridPane.columnIndex="1" GridPane.rowIndex="9" />
+                                    <Label id="packetsIcmpFlood" GridPane.columnIndex="1" GridPane.rowIndex="10" />
+                                    <Label id="sourcesTcpFlood" GridPane.columnIndex="1" GridPane.rowIndex="12" />
+                                    <Label id="sourcesUdpFlood" GridPane.columnIndex="1" GridPane.rowIndex="13" />
+                                    <Label id="sourcesIcmpFlood" GridPane.columnIndex="1" GridPane.rowIndex="14" />
+                                 </children>
+                              </GridPane>
+                           </children>
+                        </AnchorPane>
+                        <AnchorPane id="flood_table_pane">
+                           <children>
+                              <TableView id="tcp_flood_table" fx:id="floodTable" prefHeight="355.0" prefWidth="417.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <columns>
+                                  <TableColumn fx:id="ipColumn" prefWidth="75.0" text="IP" />
+                                  <TableColumn fx:id="numOfPacketsColumn" prefWidth="75.0" text="# of Packets" />
+                                    <TableColumn fx:id="attackTimeColumn" prefWidth="75.0" text="Attack time" />
+                                    <TableColumn fx:id="attackRateColumn" prefWidth="75.0" text="Attack Rate" />
+                                    <TableColumn fx:id="countryColumn" prefWidth="75.0" text="Country" />
+                                    <TableColumn fx:id="cityColumn" prefWidth="75.0" text="City" />
+                                </columns>
+                              </TableView>
+                           </children></AnchorPane>
+                        <AnchorPane id="map_pane" prefHeight="200.0" prefWidth="200.0">
+                           <children>
+                              <GoogleMapView fx:id="mapView" prefHeight="355.0" prefWidth="446.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                           </children>
+                        </AnchorPane>
+                        <AnchorPane id="line_chart_pane" prefHeight="200.0" prefWidth="200.0">
+                           <children>
+                              <LineChart fx:id="lineChartView" prefHeight="400.0" prefWidth="500.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <xAxis>
+                                  <CategoryAxis side="BOTTOM" />
+                                </xAxis>
+                                <yAxis>
+                                  <NumberAxis side="LEFT" />
+                                </yAxis>
+                              </LineChart>
+                           </children>
+                        </AnchorPane>
+                        <AnchorPane id="pie_chart_pane">
+                           <children>
+                              <PieChart fx:id="pieChartView" prefHeight="355.0" prefWidth="446.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                              <Label fx:id="pieCaption" visible="false">
+                                 <font>
+                                    <Font name="System Bold" size="12.0" />
+                                 </font></Label>
+                           </children>
+                           <effect>
+                              <Blend />
+                           </effect>
+                        </AnchorPane>
+                     </children>
+                  </StackPane>
+               </children></AnchorPane>
+        </items>
+      </SplitPane>
+   </center>
+</BorderPane>
